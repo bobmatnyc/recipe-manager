@@ -1,0 +1,31 @@
+// Re-export database types
+export type {
+  Recipe,
+  NewRecipe,
+} from '@/lib/db/schema';
+
+// UI-specific types
+export interface RecipeFilters {
+  search?: string;
+  cuisine?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  tags?: string[];
+  maxPrepTime?: number;
+  maxCookTime?: number;
+}
+
+export interface ShoppingListItem {
+  id: string;
+  name: string;
+  quantity?: string;
+  category?: string;
+  checked: boolean;
+}
+
+export interface MealPlanEntry {
+  date: string;
+  breakfast?: number; // Recipe ID
+  lunch?: number;     // Recipe ID
+  dinner?: number;    // Recipe ID
+  snack?: number;     // Recipe ID
+}
