@@ -2,18 +2,33 @@
 
 import { db } from '@/lib/db';
 import { recipes, type NewRecipe, type Recipe } from '@/lib/db/schema';
-import { eq, desc, like, or } from 'drizzle-orm';
+import { eq, desc, like, or, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/auth';
 
-// Get all recipes
+// Get all recipes for the current user
 export async function getRecipes() {
   try {
-    const allRecipes = await db
+    const { userId } = await auth();
+
+    if (!userId) {
+      // Return only public recipes for non-authenticated users
+      const publicRecipes = await db
+        .select()
+        .from(recipes)
+        .where(eq(recipes.isPublic, true))
+        .orderBy(desc(recipes.createdAt));
+      return { success: true, data: publicRecipes };
+    }
+
+    // Return user's recipes for authenticated users
+    const userRecipes = await db
       .select()
       .from(recipes)
+      .where(eq(recipes.userId, userId))
       .orderBy(desc(recipes.createdAt));
 
-    return { success: true, data: allRecipes };
+    return { success: true, data: userRecipes };
   } catch (error) {
     console.error('Failed to fetch recipes:', error);
     return { success: false, error: 'Failed to fetch recipes' };
@@ -23,6 +38,7 @@ export async function getRecipes() {
 // Get a single recipe by ID
 export async function getRecipe(id: number) {
   try {
+    const { userId } = await auth();
     const recipe = await db
       .select()
       .from(recipes)
@@ -33,7 +49,13 @@ export async function getRecipe(id: number) {
       return { success: false, error: 'Recipe not found' };
     }
 
-    return { success: true, data: recipe[0] };
+    // Check if user has access to this recipe
+    const recipeData = recipe[0];
+    if (!recipeData.isPublic && recipeData.userId !== userId) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    return { success: true, data: recipeData };
   } catch (error) {
     console.error('Failed to fetch recipe:', error);
     return { success: false, error: 'Failed to fetch recipe' };
@@ -43,18 +65,27 @@ export async function getRecipe(id: number) {
 // Search recipes
 export async function searchRecipes(query: string) {
   try {
+    const { userId } = await auth();
     const searchPattern = `%${query}%`;
+
+    // Build search conditions
+    const searchConditions = or(
+      like(recipes.name, searchPattern),
+      like(recipes.description, searchPattern),
+      like(recipes.cuisine, searchPattern),
+      like(recipes.tags, searchPattern)
+    );
+
+    // For authenticated users, search their recipes and public recipes
+    // For non-authenticated users, search only public recipes
+    const accessCondition = userId
+      ? or(eq(recipes.userId, userId), eq(recipes.isPublic, true))
+      : eq(recipes.isPublic, true);
+
     const searchResults = await db
       .select()
       .from(recipes)
-      .where(
-        or(
-          like(recipes.name, searchPattern),
-          like(recipes.description, searchPattern),
-          like(recipes.cuisine, searchPattern),
-          like(recipes.tags, searchPattern)
-        )
-      )
+      .where(and(searchConditions, accessCondition))
       .orderBy(desc(recipes.createdAt));
 
     return { success: true, data: searchResults };
@@ -65,11 +96,18 @@ export async function searchRecipes(query: string) {
 }
 
 // Create a new recipe
-export async function createRecipe(data: Omit<NewRecipe, 'id' | 'createdAt' | 'updatedAt'>) {
+export async function createRecipe(data: Omit<NewRecipe, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) {
   try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: false, error: 'Authentication required' };
+    }
+
     // Ensure ingredients and instructions are JSON strings if they're arrays
     const recipeData = {
       ...data,
+      userId,
       ingredients: typeof data.ingredients === 'string'
         ? data.ingredients
         : JSON.stringify(data.ingredients),
@@ -97,9 +135,26 @@ export async function createRecipe(data: Omit<NewRecipe, 'id' | 'createdAt' | 'u
 // Update a recipe
 export async function updateRecipe(
   id: number,
-  data: Partial<Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>>
+  data: Partial<Omit<Recipe, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>
 ) {
   try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Check if user owns this recipe
+    const existingRecipe = await db
+      .select()
+      .from(recipes)
+      .where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+      .limit(1);
+
+    if (existingRecipe.length === 0) {
+      return { success: false, error: 'Recipe not found or access denied' };
+    }
+
     // Ensure ingredients and instructions are JSON strings if they're arrays
     const updateData: any = { ...data };
 
@@ -126,12 +181,8 @@ export async function updateRecipe(
     const result = await db
       .update(recipes)
       .set(updateData)
-      .where(eq(recipes.id, id))
+      .where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
       .returning();
-
-    if (result.length === 0) {
-      return { success: false, error: 'Recipe not found' };
-    }
 
     revalidatePath('/recipes');
     revalidatePath(`/recipes/${id}`);
@@ -145,13 +196,19 @@ export async function updateRecipe(
 // Delete a recipe
 export async function deleteRecipe(id: number) {
   try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: false, error: 'Authentication required' };
+    }
+
     const result = await db
       .delete(recipes)
-      .where(eq(recipes.id, id))
+      .where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
       .returning();
 
     if (result.length === 0) {
-      return { success: false, error: 'Recipe not found' };
+      return { success: false, error: 'Recipe not found or access denied' };
     }
 
     revalidatePath('/recipes');
@@ -162,3 +219,59 @@ export async function deleteRecipe(id: number) {
   }
 }
 
+// Get public recipes for discover page
+export async function getPublicRecipes() {
+  try {
+    const publicRecipes = await db
+      .select()
+      .from(recipes)
+      .where(eq(recipes.isPublic, true))
+      .orderBy(desc(recipes.createdAt));
+
+    return { success: true, data: publicRecipes };
+  } catch (error) {
+    console.error('Failed to fetch public recipes:', error);
+    return { success: false, error: 'Failed to fetch public recipes' };
+  }
+}
+
+// Toggle recipe public/private status
+export async function toggleRecipeVisibility(id: number) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Get the current recipe
+    const recipe = await db
+      .select()
+      .from(recipes)
+      .where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+      .limit(1);
+
+    if (recipe.length === 0) {
+      return { success: false, error: 'Recipe not found or access denied' };
+    }
+
+    // Toggle the isPublic field
+    const result = await db
+      .update(recipes)
+      .set({
+        isPublic: !recipe[0].isPublic,
+        updatedAt: new Date()
+      })
+      .where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+      .returning();
+
+    revalidatePath('/recipes');
+    revalidatePath(`/recipes/${id}`);
+    revalidatePath('/discover');
+
+    return { success: true, data: result[0] };
+  } catch (error) {
+    console.error('Failed to toggle recipe visibility:', error);
+    return { success: false, error: 'Failed to toggle recipe visibility' };
+  }
+}

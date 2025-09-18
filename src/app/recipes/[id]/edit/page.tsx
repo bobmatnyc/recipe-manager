@@ -2,7 +2,8 @@ import { getRecipe } from '@/app/actions/recipes';
 import { RecipeForm } from '@/components/recipe/RecipeForm';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
 
 interface EditRecipePageProps {
   params: Promise<{
@@ -11,10 +12,21 @@ interface EditRecipePageProps {
 }
 
 export default async function EditRecipePage({ params }: EditRecipePageProps) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect('/sign-in');
+  }
+
   const { id } = await params;
   const result = await getRecipe(parseInt(id));
 
   if (!result.success || !result.data) {
+    notFound();
+  }
+
+  // Make sure the user owns this recipe
+  if (result.data.userId !== userId) {
     notFound();
   }
 

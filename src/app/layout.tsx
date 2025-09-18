@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { ChefHat, BookOpen, Sparkles, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { AuthButtons } from "@/components/auth/AuthButtons";
 import "./globals.css";
 
 
@@ -27,10 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <AuthProvider>
+      <html lang="en">
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
         {/* Navigation Header */}
         <header className="border-b bg-background">
           <div className="container mx-auto px-4">
@@ -59,6 +62,7 @@ export default function RootLayout({
                     Add Recipe
                   </Button>
                 </Link>
+                <AuthButtons />
               </div>
             </nav>
           </div>
@@ -67,7 +71,8 @@ export default function RootLayout({
         <main className="min-h-screen">
           {children}
         </main>
-      </body>
-    </html>
+        </body>
+      </html>
+    </AuthProvider>
   );
 }

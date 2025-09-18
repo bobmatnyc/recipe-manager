@@ -1,8 +1,16 @@
 import { RecipeForm } from '@/components/recipe/RecipeForm';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-export default function NewRecipePage() {
+export default async function NewRecipePage() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect('/sign-in');
+  }
+
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       <Link
