@@ -153,7 +153,7 @@ export function ImageUploader({
           const reader = new FileReader();
           reader.onload = (event) => {
             const dataUrl = event.target?.result as string;
-            onChange((prev: string[]) => [...prev, dataUrl].slice(0, maxImages));
+            onChange([...images, dataUrl].slice(0, maxImages));
           };
           reader.readAsDataURL(file);
         });
@@ -180,7 +180,7 @@ export function ImageUploader({
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
-        onChange((prev) => [...prev, dataUrl].slice(0, maxImages));
+        onChange([...images, dataUrl].slice(0, maxImages));
       };
       reader.readAsDataURL(file);
     });
