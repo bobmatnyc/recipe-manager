@@ -5,18 +5,21 @@ import { SharedRecipesContent } from '@/components/recipe/SharedRecipesContent';
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     tags?: string;
-  };
+  }>;
 }
 
 export default async function SharedRecipesPage({ searchParams }: PageProps) {
+  // Await searchParams as it's now a Promise in Next.js 15
+  const params = await searchParams;
+
   // Parse selected tags from URL
-  const selectedTags = searchParams.tags ? searchParams.tags.split(',').filter(Boolean) : [];
+  const selectedTags = params.tags ? params.tags.split(',').filter(Boolean) : [];
 
   // Fetch recipes with tag filtering
   const result = await getSharedRecipes(selectedTags);
-  const sharedRecipes = result.success ? result.data : [];
+  const sharedRecipes = result.success && result.data ? result.data : [];
 
   // Fetch all available tags
   const tagsResult = await getAllTags();

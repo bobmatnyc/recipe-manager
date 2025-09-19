@@ -96,11 +96,28 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
 
     try {
       // Filter out empty strings
+      const filteredIngredients = formData.ingredients.filter((i: string) => i.trim());
+      const filteredInstructions = formData.instructions.filter((i: string) => i.trim());
+      const filteredTags = formData.tags.filter((t: string) => t.trim());
+
+      if (filteredIngredients.length === 0) {
+        toast.error('Please add at least one ingredient');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (filteredInstructions.length === 0) {
+        toast.error('Please add at least one instruction');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Prepare data for submission with JSON strings
       const cleanedData = {
         ...formData,
-        ingredients: formData.ingredients.filter((i: string) => i.trim()),
-        instructions: formData.instructions.filter((i: string) => i.trim()),
-        tags: formData.tags.filter((t: string) => t.trim()),
+        ingredients: JSON.stringify(filteredIngredients),
+        instructions: JSON.stringify(filteredInstructions),
+        tags: JSON.stringify(filteredTags),
         prepTime: formData.prepTime || null,
         cookTime: formData.cookTime || null,
         servings: formData.servings || null,
@@ -109,18 +126,6 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
         imageUrl: formData.imageUrl || null,
         isPublic: formData.isPublic,
       };
-
-      if (cleanedData.ingredients.length === 0) {
-        toast.error('Please add at least one ingredient');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (cleanedData.instructions.length === 0) {
-        toast.error('Please add at least one instruction');
-        setIsSubmitting(false);
-        return;
-      }
 
       let result;
       if (recipe) {

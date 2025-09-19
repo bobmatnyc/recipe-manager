@@ -5,14 +5,17 @@ import RecipePageContent from '@/components/recipe/RecipePageContent';
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     tags?: string;
-  };
+  }>;
 }
 
 export default async function RecipesPage({ searchParams }: PageProps) {
+  // Await searchParams as it's now a Promise in Next.js 15
+  const params = await searchParams;
+
   // Parse selected tags from URL
-  const selectedTags = searchParams.tags ? searchParams.tags.split(',').filter(Boolean) : [];
+  const selectedTags = params.tags ? params.tags.split(',').filter(Boolean) : [];
 
   // Fetch recipes with tag filtering
   const result = await getRecipes(selectedTags);

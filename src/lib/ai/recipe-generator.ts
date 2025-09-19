@@ -170,6 +170,7 @@ Extract and provide the recipe in this JSON format:
 }`;
 
   try {
+    const openrouter = getOpenRouterClient();
     const completion = await openrouter.chat.completions.create({
       model: MODELS.LLAMA_3_8B,
       messages: [

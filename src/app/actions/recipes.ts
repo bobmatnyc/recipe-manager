@@ -75,35 +75,33 @@ export async function getRecipes(selectedTags?: string[]) {
   try {
     const { userId } = await auth();
 
-    let query;
+    // Build conditions array
+    const conditions = [];
+
+    // Add user/public condition
     if (!userId) {
-      // Return only public recipes for non-authenticated users
-      query = db
-        .select()
-        .from(recipes)
-        .where(eq(recipes.isPublic, true));
+      conditions.push(eq(recipes.isPublic, true));
     } else {
-      // Return user's recipes for authenticated users
-      query = db
-        .select()
-        .from(recipes)
-        .where(eq(recipes.userId, userId));
+      conditions.push(eq(recipes.userId, userId));
     }
 
-    // Apply tag filtering if tags are selected
+    // Add tag filtering conditions if tags are selected
     if (selectedTags && selectedTags.length > 0) {
       const normalizedTags = selectedTags.map(tag => tag.toLowerCase());
-      query = query.where(
-        and(
-          ...normalizedTags.map(tag =>
-            or(
-              like(recipes.tags, `%"${tag}"%`),
-              like(recipes.tags, `%${tag}%`)
-            )
-          )
+      const tagConditions = normalizedTags.map(tag =>
+        or(
+          like(recipes.tags, `%"${tag}"%`),
+          like(recipes.tags, `%${tag}%`)
         )
-      );
+      ).filter((condition): condition is NonNullable<typeof condition> => condition !== undefined);
+      conditions.push(...tagConditions);
     }
+
+    // Build and execute query
+    const query = db
+      .select()
+      .from(recipes)
+      .where(conditions.length > 1 ? and(...conditions) : conditions[0]);
 
     const results = await query.orderBy(desc(recipes.createdAt));
 
@@ -383,26 +381,26 @@ export async function toggleRecipeVisibility(id: string) {
 // Get all shared recipes (public recipes including system recipes) with optional tag filtering
 export async function getSharedRecipes(selectedTags?: string[]) {
   try {
-    let query = db
-      .select()
-      .from(recipes)
-      .where(eq(recipes.isPublic, true));
+    // Build conditions array
+    const conditions = [eq(recipes.isPublic, true)];
 
-    // Apply tag filtering if tags are selected
+    // Add tag filtering conditions if tags are selected
     if (selectedTags && selectedTags.length > 0) {
       const normalizedTags = selectedTags.map(tag => tag.toLowerCase());
-      query = query.where(
-        and(
-          eq(recipes.isPublic, true),
-          ...normalizedTags.map(tag =>
-            or(
-              like(recipes.tags, `%"${tag}"%`),
-              like(recipes.tags, `%${tag}%`)
-            )
-          )
+      const tagConditions = normalizedTags.map(tag =>
+        or(
+          like(recipes.tags, `%"${tag}"%`),
+          like(recipes.tags, `%${tag}%`)
         )
-      );
+      ).filter((condition): condition is NonNullable<typeof condition> => condition !== undefined);
+      conditions.push(...tagConditions);
     }
+
+    // Build and execute query
+    const query = db
+      .select()
+      .from(recipes)
+      .where(conditions.length > 1 ? and(...conditions) : conditions[0]);
 
     const results = await query.orderBy(desc(recipes.isSystemRecipe), desc(recipes.createdAt));
 
