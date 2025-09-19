@@ -17,7 +17,10 @@ interface EditRecipePageProps {
 export default async function EditRecipePage({ params }: EditRecipePageProps) {
   const { userId } = await auth();
 
-  if (!userId) {
+  // Skip auth check for localhost development
+  const isLocalhost = process.env.NODE_ENV === 'development';
+
+  if (!userId && !isLocalhost) {
     redirect('/sign-in');
   }
 
@@ -28,8 +31,8 @@ export default async function EditRecipePage({ params }: EditRecipePageProps) {
     notFound();
   }
 
-  // Make sure the user owns this recipe
-  if (result.data.userId !== userId) {
+  // Make sure the user owns this recipe (skip in development)
+  if (!isLocalhost && result.data.userId !== userId) {
     notFound();
   }
 

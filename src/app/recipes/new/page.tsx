@@ -10,7 +10,10 @@ export const dynamic = 'force-dynamic';
 export default async function NewRecipePage() {
   const { userId } = await auth();
 
-  if (!userId) {
+  // Skip auth check for localhost development
+  const isLocalhost = process.env.NODE_ENV === 'development';
+
+  if (!userId && !isLocalhost) {
     redirect('/sign-in');
   }
 
