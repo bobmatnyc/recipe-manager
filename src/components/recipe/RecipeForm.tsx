@@ -1,16 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { type Recipe } from '@/lib/db/schema';
-import { createRecipe, updateRecipe } from '@/app/actions/recipes';
+import { createRecipe, updateRecipe, getAllTags } from '@/app/actions/recipes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { toast } from '@/lib/toast';
-import { Plus, X, Save, Loader2 } from 'lucide-react';
+import { Plus, X, Save, Loader2, Globe, Lock, Tag, TrendingUp } from 'lucide-react';
 
 interface RecipeFormProps {
   recipe?: Recipe;
@@ -19,11 +33,26 @@ interface RecipeFormProps {
 export function RecipeForm({ recipe }: RecipeFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   // Parse existing recipe data if editing
   const existingIngredients = recipe?.ingredients ? JSON.parse(recipe.ingredients as string) : [''];
   const existingInstructions = recipe?.instructions ? JSON.parse(recipe.instructions as string) : [''];
-  const existingTags = recipe?.tags ? JSON.parse(recipe.tags as string) : [''];
+  const existingTags = recipe?.tags ? JSON.parse(recipe.tags as string) : [];
+
+  // Load available tags
+  useEffect(() => {
+    const loadTags = async () => {
+      const result = await getAllTags();
+      if (result.success && result.data) {
+        setAvailableTags(result.data.tags);
+      }
+    };
+    loadTags();
+  }, []);
 
   const [formData, setFormData] = useState({
     name: recipe?.name || '',
@@ -35,8 +64,9 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
     servings: recipe?.servings || 4,
     difficulty: recipe?.difficulty || 'medium',
     cuisine: recipe?.cuisine || '',
-    tags: existingTags,
+    tags: existingTags as string[],
     imageUrl: recipe?.imageUrl || '',
+    isPublic: recipe?.isPublic || false,
   });
 
   const handleArrayChange = (field: 'ingredients' | 'instructions' | 'tags', index: number, value: string) => {
@@ -77,6 +107,7 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
         description: formData.description || null,
         cuisine: formData.cuisine || null,
         imageUrl: formData.imageUrl || null,
+        isPublic: formData.isPublic,
       };
 
       if (cleanedData.ingredients.length === 0) {
@@ -293,39 +324,186 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
         {/* Tags */}
         <Card>
           <CardHeader>
-            <CardTitle>Tags</CardTitle>
-            <CardDescription>Add tags to help categorize your recipe</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              Tags
+            </CardTitle>
+            <CardDescription>Add tags to help categorize and discover your recipe</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {formData.tags.map((tag: string, index: number) => (
-              <div key={index} className="flex gap-2">
-                <Input
-                  value={tag}
-                  onChange={(e) => handleArrayChange('tags', index, e.target.value)}
-                  placeholder="e.g., dessert, vegan"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeArrayItem('tags', index)}
-                  disabled={formData.tags.length === 1}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+          <CardContent className="space-y-4">
+            {/* Selected Tags Display */}
+            {formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {formData.tags.map((tag: string, index: number) => (
+                  <Badge key={index} variant="secondary" className="py-1 px-2">
+                    <span className="capitalize">{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('tags', index)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
               </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => addArrayItem('tags')}
-              className="w-full"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Tag
-            </Button>
+            )}
+
+            {/* Tag Input with Autocomplete */}
+            <div className="space-y-2">
+              <Popover open={showTagSuggestions} onOpenChange={setShowTagSuggestions}>
+                <PopoverTrigger asChild>
+                  <div className="flex gap-2">
+                    <Input
+                      ref={tagInputRef}
+                      value={tagInput}
+                      onChange={(e) => {
+                        setTagInput(e.target.value);
+                        setShowTagSuggestions(e.target.value.length > 0);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && tagInput.trim()) {
+                          e.preventDefault();
+                          const newTag = tagInput.trim().toLowerCase();
+                          if (!formData.tags.includes(newTag)) {
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: [...prev.tags, newTag]
+                            }));
+                          }
+                          setTagInput('');
+                          setShowTagSuggestions(false);
+                        }
+                      }}
+                      placeholder="Type to add or select tags..."
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (tagInput.trim()) {
+                          const newTag = tagInput.trim().toLowerCase();
+                          if (!formData.tags.includes(newTag)) {
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: [...prev.tags, newTag]
+                            }));
+                          }
+                          setTagInput('');
+                          setShowTagSuggestions(false);
+                        }
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search tags..." className="hidden" />
+                    <CommandEmpty>Press enter to add "{tagInput}"</CommandEmpty>
+                    <CommandGroup heading="Suggested Tags">
+                      {availableTags
+                        .filter(tag =>
+                          tag.toLowerCase().includes(tagInput.toLowerCase()) &&
+                          !formData.tags.includes(tag)
+                        )
+                        .slice(0, 8)
+                        .map(tag => (
+                          <CommandItem
+                            key={tag}
+                            onSelect={() => {
+                              if (!formData.tags.includes(tag)) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  tags: [...prev.tags, tag]
+                                }));
+                              }
+                              setTagInput('');
+                              setShowTagSuggestions(false);
+                              tagInputRef.current?.focus();
+                            }}
+                          >
+                            <Tag className="w-4 h-4 mr-2" />
+                            <span className="capitalize">{tag}</span>
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Popular Tags Suggestions */}
+            {availableTags.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
+                  <TrendingUp className="w-4 h-4" />
+                  Popular tags:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags
+                    .filter(tag => !formData.tags.includes(tag))
+                    .slice(0, 10)
+                    .map(tag => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-secondary capitalize"
+                        onClick={() => {
+                          if (!formData.tags.includes(tag)) {
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: [...prev.tags, tag]
+                            }));
+                          }
+                        }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        {tag}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Sharing Settings - Only show when editing existing recipe */}
+        {recipe && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Sharing Settings</CardTitle>
+              <CardDescription>Control who can see this recipe</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between space-x-4">
+                <div className="flex items-center space-x-2">
+                  {formData.isPublic ? (
+                    <Globe className="w-5 h-5 text-primary" />
+                  ) : (
+                    <Lock className="w-5 h-5 text-muted-foreground" />
+                  )}
+                  <Label htmlFor="public-toggle" className="text-base">
+                    {formData.isPublic ? 'Public Recipe' : 'Private Recipe'}
+                  </Label>
+                </div>
+                <Switch
+                  id="public-toggle"
+                  checked={formData.isPublic}
+                  onCheckedChange={(checked) =>
+                    setFormData(prev => ({ ...prev, isPublic: checked }))
+                  }
+                />
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {formData.isPublic
+                  ? 'This recipe is visible to everyone and can be copied by other users.'
+                  : 'This recipe is only visible to you.'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Submit Button */}
         <div className="flex gap-4">

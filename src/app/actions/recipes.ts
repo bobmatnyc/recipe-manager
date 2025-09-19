@@ -6,29 +6,130 @@ import { eq, desc, like, or, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 
-// Get all recipes for the current user
-export async function getRecipes() {
+// Get all unique tags from recipes
+export async function getAllTags() {
   try {
     const { userId } = await auth();
 
+    // Get recipes based on user authentication
+    // For authenticated users: their recipes + all public recipes
+    // For non-authenticated users: only public recipes
+    const accessCondition = userId
+      ? or(eq(recipes.userId, userId), eq(recipes.isPublic, true))
+      : eq(recipes.isPublic, true);
+
+    const allRecipes = await db
+      .select({ tags: recipes.tags })
+      .from(recipes)
+      .where(accessCondition);
+
+    // Extract and aggregate unique tags
+    const tagSet = new Set<string>();
+    const tagCounts: Record<string, number> = {};
+
+    allRecipes.forEach(recipe => {
+      if (recipe.tags) {
+        try {
+          const parsedTags = JSON.parse(recipe.tags);
+          if (Array.isArray(parsedTags)) {
+            parsedTags.forEach((tag: string) => {
+              const normalizedTag = tag.trim().toLowerCase();
+              tagSet.add(normalizedTag);
+              tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+            });
+          }
+        } catch (e) {
+          // Handle non-JSON tags (might be comma-separated string)
+          const tags = recipe.tags.split(',').map(t => t.trim().toLowerCase());
+          tags.forEach(tag => {
+            if (tag) {
+              tagSet.add(tag);
+              tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            }
+          });
+        }
+      }
+    });
+
+    // Sort tags by count (most popular first) and then alphabetically
+    const sortedTags = Array.from(tagSet).sort((a, b) => {
+      const countDiff = tagCounts[b] - tagCounts[a];
+      return countDiff !== 0 ? countDiff : a.localeCompare(b);
+    });
+
+    return {
+      success: true,
+      data: {
+        tags: sortedTags,
+        counts: tagCounts
+      }
+    };
+  } catch (error) {
+    console.error('Failed to fetch tags:', error);
+    return { success: false, error: 'Failed to fetch tags' };
+  }
+}
+
+// Get all recipes for the current user with optional tag filtering
+export async function getRecipes(selectedTags?: string[]) {
+  try {
+    const { userId } = await auth();
+
+    let query;
     if (!userId) {
       // Return only public recipes for non-authenticated users
-      const publicRecipes = await db
+      query = db
         .select()
         .from(recipes)
-        .where(eq(recipes.isPublic, true))
-        .orderBy(desc(recipes.createdAt));
-      return { success: true, data: publicRecipes };
+        .where(eq(recipes.isPublic, true));
+    } else {
+      // Return user's recipes for authenticated users
+      query = db
+        .select()
+        .from(recipes)
+        .where(eq(recipes.userId, userId));
     }
 
-    // Return user's recipes for authenticated users
-    const userRecipes = await db
-      .select()
-      .from(recipes)
-      .where(eq(recipes.userId, userId))
-      .orderBy(desc(recipes.createdAt));
+    // Apply tag filtering if tags are selected
+    if (selectedTags && selectedTags.length > 0) {
+      const normalizedTags = selectedTags.map(tag => tag.toLowerCase());
+      query = query.where(
+        and(
+          ...normalizedTags.map(tag =>
+            or(
+              like(recipes.tags, `%"${tag}"%`),
+              like(recipes.tags, `%${tag}%`)
+            )
+          )
+        )
+      );
+    }
 
-    return { success: true, data: userRecipes };
+    const results = await query.orderBy(desc(recipes.createdAt));
+
+    // Additional client-side filtering for exact tag matches
+    let filteredResults = results;
+    if (selectedTags && selectedTags.length > 0) {
+      const normalizedTags = selectedTags.map(tag => tag.toLowerCase());
+      filteredResults = results.filter(recipe => {
+        if (!recipe.tags) return false;
+
+        try {
+          const recipeTags = JSON.parse(recipe.tags);
+          if (Array.isArray(recipeTags)) {
+            const normalizedRecipeTags = recipeTags.map((t: string) => t.toLowerCase());
+            return normalizedTags.every(tag => normalizedRecipeTags.includes(tag));
+          }
+        } catch (e) {
+          // Handle non-JSON tags
+          const recipeTags = recipe.tags.split(',').map(t => t.trim().toLowerCase());
+          return normalizedTags.every(tag => recipeTags.includes(tag));
+        }
+        return false;
+      });
+    }
+
+    return { success: true, data: filteredResults };
   } catch (error) {
     console.error('Failed to fetch recipes:', error);
     return { success: false, error: 'Failed to fetch recipes' };
@@ -36,7 +137,7 @@ export async function getRecipes() {
 }
 
 // Get a single recipe by ID
-export async function getRecipe(id: number) {
+export async function getRecipe(id: string) {
   try {
     const { userId } = await auth();
     const recipe = await db
@@ -134,7 +235,7 @@ export async function createRecipe(data: Omit<NewRecipe, 'id' | 'createdAt' | 'u
 
 // Update a recipe
 export async function updateRecipe(
-  id: number,
+  id: string,
   data: Partial<Omit<Recipe, 'id' | 'createdAt' | 'updatedAt' | 'userId'>>
 ) {
   try {
@@ -194,7 +295,7 @@ export async function updateRecipe(
 }
 
 // Delete a recipe
-export async function deleteRecipe(id: number) {
+export async function deleteRecipe(id: string) {
   try {
     const { userId } = await auth();
 
@@ -235,8 +336,11 @@ export async function getPublicRecipes() {
   }
 }
 
+// Toggle recipe public/private status (alias for compatibility)
+export const toggleRecipeSharing = toggleRecipeVisibility;
+
 // Toggle recipe public/private status
-export async function toggleRecipeVisibility(id: number) {
+export async function toggleRecipeVisibility(id: string) {
   try {
     const { userId } = await auth();
 
@@ -273,5 +377,159 @@ export async function toggleRecipeVisibility(id: number) {
   } catch (error) {
     console.error('Failed to toggle recipe visibility:', error);
     return { success: false, error: 'Failed to toggle recipe visibility' };
+  }
+}
+
+// Get all shared recipes (public recipes including system recipes) with optional tag filtering
+export async function getSharedRecipes(selectedTags?: string[]) {
+  try {
+    let query = db
+      .select()
+      .from(recipes)
+      .where(eq(recipes.isPublic, true));
+
+    // Apply tag filtering if tags are selected
+    if (selectedTags && selectedTags.length > 0) {
+      const normalizedTags = selectedTags.map(tag => tag.toLowerCase());
+      query = query.where(
+        and(
+          eq(recipes.isPublic, true),
+          ...normalizedTags.map(tag =>
+            or(
+              like(recipes.tags, `%"${tag}"%`),
+              like(recipes.tags, `%${tag}%`)
+            )
+          )
+        )
+      );
+    }
+
+    const results = await query.orderBy(desc(recipes.isSystemRecipe), desc(recipes.createdAt));
+
+    // Additional client-side filtering for exact tag matches
+    let filteredResults = results;
+    if (selectedTags && selectedTags.length > 0) {
+      const normalizedTags = selectedTags.map(tag => tag.toLowerCase());
+      filteredResults = results.filter(recipe => {
+        if (!recipe.tags) return false;
+
+        try {
+          const recipeTags = JSON.parse(recipe.tags);
+          if (Array.isArray(recipeTags)) {
+            const normalizedRecipeTags = recipeTags.map((t: string) => t.toLowerCase());
+            return normalizedTags.every(tag => normalizedRecipeTags.includes(tag));
+          }
+        } catch (e) {
+          // Handle non-JSON tags
+          const recipeTags = recipe.tags.split(',').map(t => t.trim().toLowerCase());
+          return normalizedTags.every(tag => recipeTags.includes(tag));
+        }
+        return false;
+      });
+    }
+
+    return { success: true, data: filteredResults };
+  } catch (error) {
+    console.error('Failed to fetch shared recipes:', error);
+    return { success: false, error: 'Failed to fetch shared recipes' };
+  }
+}
+
+// Get system recipes only
+export async function getSystemRecipes() {
+  try {
+    const systemRecipes = await db
+      .select()
+      .from(recipes)
+      .where(and(eq(recipes.isPublic, true), eq(recipes.isSystemRecipe, true)))
+      .orderBy(desc(recipes.createdAt));
+
+    return { success: true, data: systemRecipes };
+  } catch (error) {
+    console.error('Failed to fetch system recipes:', error);
+    return { success: false, error: 'Failed to fetch system recipes' };
+  }
+}
+
+// Copy a shared recipe to user's collection
+export async function copyRecipeToCollection(recipeId: string) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Get the recipe to copy
+    const recipeToCopy = await db
+      .select()
+      .from(recipes)
+      .where(and(eq(recipes.id, recipeId), eq(recipes.isPublic, true)))
+      .limit(1);
+
+    if (recipeToCopy.length === 0) {
+      return { success: false, error: 'Recipe not found or not public' };
+    }
+
+    const originalRecipe = recipeToCopy[0];
+
+    // Create a copy for the user
+    const copiedRecipe = await db
+      .insert(recipes)
+      .values({
+        ...originalRecipe,
+        userId,
+        isPublic: false, // Make it private by default
+        isSystemRecipe: false, // User copies are never system recipes
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: `${originalRecipe.name} (Copy)`,
+      })
+      .returning();
+
+    revalidatePath('/recipes');
+    return { success: true, data: copiedRecipe[0] };
+  } catch (error) {
+    console.error('Failed to copy recipe:', error);
+    return { success: false, error: 'Failed to copy recipe to collection' };
+  }
+}
+
+// Mark a recipe as a system recipe (admin action - can be restricted later)
+export async function markAsSystemRecipe(recipeId: string, isSystem: boolean = true) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // For now, any authenticated user can mark recipes as system
+    // In production, you would check for admin role here
+    // if (!isAdmin(userId)) {
+    //   return { success: false, error: 'Admin access required' };
+    // }
+
+    const result = await db
+      .update(recipes)
+      .set({
+        isSystemRecipe: isSystem,
+        isPublic: true, // System recipes should always be public
+        updatedAt: new Date()
+      })
+      .where(eq(recipes.id, recipeId))
+      .returning();
+
+    if (result.length === 0) {
+      return { success: false, error: 'Recipe not found' };
+    }
+
+    revalidatePath('/shared');
+    revalidatePath(`/recipes/${recipeId}`);
+
+    return { success: true, data: result[0] };
+  } catch (error) {
+    console.error('Failed to mark recipe as system:', error);
+    return { success: false, error: 'Failed to update recipe status' };
   }
 }

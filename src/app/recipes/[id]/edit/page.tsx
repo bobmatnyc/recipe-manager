@@ -5,6 +5,9 @@ import { ChevronLeft } from 'lucide-react';
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 
+// Force dynamic rendering since we use authentication
+export const dynamic = 'force-dynamic';
+
 interface EditRecipePageProps {
   params: Promise<{
     id: string;

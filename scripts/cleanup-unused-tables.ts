@@ -17,11 +17,14 @@ if (!databaseUrl.startsWith('postgresql://')) {
   throw new Error(`DATABASE_URL must be a PostgreSQL connection string. Got: ${databaseUrl.substring(0, 30)}...`);
 }
 
+// Type assertion to ensure TypeScript knows databaseUrl is defined
+const validDatabaseUrl: string = databaseUrl;
+
 async function cleanupUnusedTables() {
   console.log('🧹 Starting database cleanup...\n');
 
   // Create connection
-  const client = postgres(databaseUrl);
+  const client = postgres(validDatabaseUrl);
   const db = drizzle(client);
 
   try {

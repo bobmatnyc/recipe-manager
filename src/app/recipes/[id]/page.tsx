@@ -6,9 +6,11 @@ import { parseRecipe } from '@/lib/utils/recipe-utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, Clock, Users, ChefHat, Edit, Printer, Bot } from 'lucide-react';
+import { ChevronLeft, Clock, Users, ChefHat, Edit, Printer, Bot, Download, FileText, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { exportRecipeAsMarkdown, exportRecipeAsPDF } from '@/app/actions/recipe-export';
+import { toast } from 'sonner';
 
 interface RecipePageProps {
   params: Promise<{
@@ -20,6 +22,7 @@ export default function RecipePage({ params }: RecipePageProps) {
   const [recipe, setRecipe] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [recipeId, setRecipeId] = useState<string>('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     params.then(p => setRecipeId(p.id));
@@ -29,7 +32,7 @@ export default function RecipePage({ params }: RecipePageProps) {
     if (!recipeId) return;
 
     async function fetchRecipe() {
-      const result = await getRecipe(parseInt(recipeId));
+      const result = await getRecipe(recipeId);
       if (!result.success || !result.data) {
         notFound();
         return;
@@ -39,6 +42,63 @@ export default function RecipePage({ params }: RecipePageProps) {
     }
     fetchRecipe();
   }, [recipeId]);
+
+  const handleExportMarkdown = async () => {
+    try {
+      setExporting(true);
+      const result = await exportRecipeAsMarkdown(recipeId);
+
+      // Convert base64 to blob and download
+      const blob = new Blob([result.content], { type: result.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Recipe exported as Markdown!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export recipe');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      const result = await exportRecipeAsPDF(recipeId);
+
+      // Convert base64 to blob and download
+      const byteCharacters = atob(result.content);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: result.mimeType });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Recipe exported as PDF!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export recipe as PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading) {
     return <div className="container mx-auto py-8 px-4">Loading...</div>;
@@ -76,6 +136,33 @@ export default function RecipePage({ params }: RecipePageProps) {
                 Edit
               </Button>
             </Link>
+            <div className="relative group">
+              <Button
+                variant="outline"
+                disabled={exporting}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {exporting ? 'Exporting...' : 'Export'}
+              </Button>
+              <div className="absolute right-0 mt-2 w-48 bg-background border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                <button
+                  onClick={handleExportMarkdown}
+                  className="w-full text-left px-4 py-2 hover:bg-accent flex items-center"
+                  disabled={exporting}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export as Markdown
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="w-full text-left px-4 py-2 hover:bg-accent flex items-center"
+                  disabled={exporting}
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Export as PDF
+                </button>
+              </div>
+            </div>
             <Button
               variant="outline"
               onClick={() => window.print()}

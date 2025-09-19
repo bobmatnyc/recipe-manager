@@ -4,6 +4,9 @@ import { ChevronLeft } from 'lucide-react';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
+// Force dynamic rendering since we use authentication
+export const dynamic = 'force-dynamic';
+
 export default async function NewRecipePage() {
   const { userId } = await auth();
 

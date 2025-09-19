@@ -1,16 +1,22 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Check if Clerk keys are configured
-const isClerkConfigured =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'YOUR_PUBLISHABLE_KEY' &&
-  process.env.CLERK_SECRET_KEY &&
-  process.env.CLERK_SECRET_KEY !== 'YOUR_SECRET_KEY';
-
 export async function middleware(request: NextRequest) {
+  // Check if we're in production (recipe.help or vercel.app domains)
+  const isProduction =
+    request.nextUrl.hostname.includes('recipe.help') ||
+    request.nextUrl.hostname.includes('vercel.app');
+
+  // Only enable Clerk in production with proper keys
+  const isClerkConfigured =
+    isProduction &&
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'YOUR_PUBLISHABLE_KEY' &&
+    process.env.CLERK_SECRET_KEY &&
+    process.env.CLERK_SECRET_KEY !== 'YOUR_SECRET_KEY';
+
   if (!isClerkConfigured) {
-    // Skip authentication if Clerk is not configured
+    // Skip all authentication for localhost and non-configured environments
     return NextResponse.next();
   }
 

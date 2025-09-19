@@ -1,4 +1,4 @@
-import { openrouter, MODELS, ModelName } from './openrouter';
+import { getOpenRouterClient, MODELS, ModelName } from './openrouter-server';
 import { z } from 'zod';
 
 // Schema for generated recipe
@@ -129,6 +129,7 @@ Always respond with valid JSON matching the exact schema provided.`;
       completionParams.response_format = { type: 'json_object' };
     }
 
+    const openrouter = getOpenRouterClient();
     const completion = await openrouter.chat.completions.create(completionParams);
 
     const content = completion.choices[0]?.message?.content;

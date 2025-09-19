@@ -1,9 +1,10 @@
-import { pgTable, text, integer, serial, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { randomUUID } from 'crypto';
 
 // Recipes table with authentication support
 export const recipes = pgTable('recipes', {
-  id: serial('id').primaryKey(),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   userId: text('user_id').notNull(), // Clerk user ID
   name: text('name').notNull(),
   description: text('description'),
@@ -18,6 +19,7 @@ export const recipes = pgTable('recipes', {
   imageUrl: text('image_url'), // External URL only
   isAiGenerated: boolean('is_ai_generated').default(false),
   isPublic: boolean('is_public').default(false), // Recipe visibility
+  isSystemRecipe: boolean('is_system_recipe').default(false), // System/curated recipes
   nutritionInfo: text('nutrition_info'), // JSON object with nutritional data
   modelUsed: text('model_used'), // AI model used for generation
   source: text('source'), // Recipe source (URL, chef name, etc.)

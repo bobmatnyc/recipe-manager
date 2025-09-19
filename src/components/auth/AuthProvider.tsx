@@ -2,8 +2,14 @@
 
 import { ReactNode } from 'react';
 
-// Check if Clerk keys are configured
+// Check if we're in production (recipe.help domain) or local development
+const isProduction = typeof window !== 'undefined' &&
+                    (window.location.hostname.includes('recipe.help') ||
+                     window.location.hostname.includes('vercel.app'));
+
+// Only enable Clerk in production, disable for localhost
 const isClerkConfigured =
+  isProduction &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'YOUR_PUBLISHABLE_KEY';
 

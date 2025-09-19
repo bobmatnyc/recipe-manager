@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
-import { ChefHat, BookOpen, Sparkles, Plus } from "lucide-react";
+import { ChefHat, BookOpen, Sparkles, Plus, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AuthButtons } from "@/components/auth/AuthButtons";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 
@@ -50,6 +51,12 @@ export default function RootLayout({
                     My Recipes
                   </Button>
                 </Link>
+                <Link href="/shared">
+                  <Button variant="ghost" size="sm">
+                    <Globe className="h-4 w-4 mr-2" />
+                    Shared
+                  </Button>
+                </Link>
                 <Link href="/discover">
                   <Button variant="ghost" size="sm">
                     <Sparkles className="h-4 w-4 mr-2" />
@@ -71,6 +78,7 @@ export default function RootLayout({
         <main className="min-h-screen">
           {children}
         </main>
+        <Toaster position="bottom-right" richColors />
         </body>
       </html>
     </AuthProvider>

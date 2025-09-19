@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { discoverRecipe, saveDiscoveredRecipe } from '@/app/actions/ai-recipes';
+import { getAllTags } from '@/app/actions/recipes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/client-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/lib/toast';
-import { Search, Sparkles, Plus, X, Clock, Users, ChefHat, Save, Loader2, Cpu, Globe } from 'lucide-react';
+import { Search, Sparkles, Plus, X, Clock, Users, ChefHat, Save, Loader2, Cpu, Globe, Wand2, TrendingUp, Tag } from 'lucide-react';
 import { MODELS, MODEL_CATEGORIES } from '@/lib/ai/openrouter';
+import { WebSearchPanel } from '@/components/recipe/WebSearchPanel';
 
 export default function DiscoverPage() {
   const router = useRouter();
@@ -21,6 +24,8 @@ export default function DiscoverPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [popularTags, setPopularTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // Form state
   const [query, setQuery] = useState('');
@@ -32,6 +37,32 @@ export default function DiscoverPage() {
   const [dietaryRestrictions, setDietaryRestrictions] = useState<string[]>(['']);
   const [selectedModel, setSelectedModel] = useState<string>(MODELS.PERPLEXITY_SONAR);
   const [useWebSearch, setUseWebSearch] = useState(true);
+
+  // Load popular tags on mount
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        const result = await getAllTags();
+        if (result.success && result.data) {
+          // Get top 20 most popular tags
+          const topTags = result.data.tags.slice(0, 20);
+          setPopularTags(topTags);
+        }
+      } catch (error) {
+        console.error('Failed to load tags:', error);
+      }
+    };
+    loadTags();
+  }, []);
+
+  const handleTagClick = (tag: string) => {
+    const normalizedTag = tag.toLowerCase();
+    if (selectedTags.includes(normalizedTag)) {
+      setSelectedTags(selectedTags.filter(t => t !== normalizedTag));
+    } else {
+      setSelectedTags([...selectedTags, normalizedTag]);
+    }
+  };
 
   const handleAddIngredient = () => {
     setIngredients([...ingredients, '']);
@@ -64,14 +95,23 @@ export default function DiscoverPage() {
   const handleDiscover = async () => {
     setIsGenerating(true);
     try {
+      // Build query including selected tags
+      let enhancedQuery = query;
+      if (selectedTags.length > 0) {
+        const tagString = selectedTags.join(', ');
+        enhancedQuery = query
+          ? `${query} (tags: ${tagString})`
+          : `Recipe with tags: ${tagString}`;
+      }
+
       const result = await discoverRecipe({
-        query: query || undefined,
+        query: enhancedQuery || undefined,
         ingredients: ingredients.filter(i => i.trim()),
         cuisine: cuisine || undefined,
         mealType: mealType || undefined,
         difficulty: difficulty as any || undefined,
         servings: servings ? parseInt(servings) : undefined,
-        dietaryRestrictions: dietaryRestrictions.filter(r => r.trim()),
+        dietaryRestrictions: [...dietaryRestrictions.filter(r => r.trim()), ...selectedTags],
         model: selectedModel,
         useWebSearch: useWebSearch,
       });
@@ -115,11 +155,23 @@ export default function DiscoverPage() {
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Discover Recipes</h1>
         <p className="text-muted-foreground">
-          Use AI to generate personalized recipes based on your preferences
+          Generate AI recipes or search the web for authentic recipes from food blogs and chef resources
         </p>
       </div>
 
-      <div className="space-y-6">
+      <Tabs defaultValue="generate" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="generate" className="flex items-center gap-2">
+            <Wand2 className="w-4 h-4" />
+            Generate Recipe
+          </TabsTrigger>
+          <TabsTrigger value="search" className="flex items-center gap-2">
+            <Globe className="w-4 h-4" />
+            Search Web
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="generate" className="space-y-6 mt-6">
         {/* Quick Search */}
         <Card>
           <CardHeader>
@@ -140,6 +192,55 @@ export default function DiscoverPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Popular Tags */}
+        {popularTags.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Popular Tags
+              </CardTitle>
+              <CardDescription>
+                Click tags to filter your recipe generation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {popularTags.map(tag => {
+                  const isSelected = selectedTags.includes(tag.toLowerCase());
+                  return (
+                    <Badge
+                      key={tag}
+                      variant={isSelected ? "default" : "outline"}
+                      className="cursor-pointer transition-all hover:scale-105 capitalize"
+                      onClick={() => handleTagClick(tag)}
+                    >
+                      {isSelected && <X className="w-3 h-3 mr-1" />}
+                      {tag}
+                    </Badge>
+                  );
+                })}
+              </div>
+              {selectedTags.length > 0 && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Selected: {selectedTags.length} tag{selectedTags.length !== 1 ? 's' : ''}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTags([])}
+                    className="ml-auto"
+                  >
+                    Clear all
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Advanced Options */}
         <Card>
@@ -338,7 +439,12 @@ export default function DiscoverPage() {
             </Button>
           </CardFooter>
         </Card>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="search" className="mt-6">
+          <WebSearchPanel />
+        </TabsContent>
+      </Tabs>
 
       {/* Recipe Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
