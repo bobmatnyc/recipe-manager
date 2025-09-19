@@ -15,6 +15,10 @@ const systemRecipes = [
     difficulty: 'medium',
     cuisine: 'French',
     tags: ['soup', 'French', 'comfort food', 'cheese'],
+    images: [
+      'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1574484284002-952d92456975?w=800&h=600&fit=crop'
+    ],
     nutritionInfo: { calories: 420, protein: '18g', carbs: '45g', fat: '18g', fiber: '4g', sodium: '1200mg' }
   },
   {
@@ -28,6 +32,9 @@ const systemRecipes = [
     difficulty: 'hard',
     cuisine: 'French',
     tags: ['main course', 'French', 'wine', 'chicken'],
+    images: [
+      'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=800&h=600&fit=crop'
+    ],
     nutritionInfo: { calories: 520, protein: '35g', carbs: '15g', fat: '28g', fiber: '2g', sodium: '850mg' }
   },
 
@@ -43,6 +50,9 @@ const systemRecipes = [
     difficulty: 'hard',
     cuisine: 'Italian',
     tags: ['main course', 'Italian', 'braised', 'veal'],
+    images: [
+      'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=800&h=600&fit=crop'
+    ],
     nutritionInfo: { calories: 480, protein: '42g', carbs: '22g', fat: '20g', fiber: '3g', sodium: '750mg' }
   },
   {
@@ -56,6 +66,9 @@ const systemRecipes = [
     difficulty: 'medium',
     cuisine: 'Italian',
     tags: ['pasta', 'Italian', 'vegetarian', 'comfort food'],
+    images: [
+      'https://images.unsplash.com/photo-1609501676725-7186f017a4b7?w=800&h=600&fit=crop'
+    ],
     nutritionInfo: { calories: 380, protein: '10g', carbs: '58g', fat: '14g', fiber: '3g', sodium: '620mg' }
   },
 
@@ -71,6 +84,10 @@ const systemRecipes = [
     difficulty: 'hard',
     cuisine: 'Indian',
     tags: ['rice', 'Indian', 'spicy', 'main course'],
+    images: [
+      'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=800&h=600&fit=crop'
+    ],
     nutritionInfo: { calories: 440, protein: '28g', carbs: '52g', fat: '12g', fiber: '2g', sodium: '680mg' }
   },
   {
@@ -84,6 +101,9 @@ const systemRecipes = [
     difficulty: 'easy',
     cuisine: 'Indian',
     tags: ['curry', 'Indian', 'vegetarian', 'spinach'],
+    images: [
+      'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&h=600&fit=crop'
+    ],
     nutritionInfo: { calories: 280, protein: '16g', carbs: '18g', fat: '18g', fiber: '4g', sodium: '520mg' }
   },
   {
@@ -460,6 +480,7 @@ async function populateSystemRecipes() {
         cuisine: recipe.cuisine,
         tags: JSON.stringify(recipe.tags),
         imageUrl: null,
+        images: recipe.images ? JSON.stringify(recipe.images) : null,
         isAiGenerated: false,
         isPublic: true,
         isSystemRecipe: true,

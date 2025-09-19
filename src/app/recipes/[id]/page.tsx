@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { exportRecipeAsMarkdown, exportRecipeAsPDF } from '@/app/actions/recipe-export';
 import { toast } from 'sonner';
+import { ImageCarousel } from '@/components/recipe/ImageCarousel';
 
 interface RecipePageProps {
   params: Promise<{
@@ -229,16 +230,12 @@ export default function RecipePage({ params }: RecipePageProps) {
         )}
       </div>
 
-      {/* Image */}
-      {recipe.imageUrl && (
-        <div className="mb-8 rounded-lg overflow-hidden">
-          <img
-            src={recipe.imageUrl}
-            alt={recipe.name}
-            className="w-full h-auto max-h-[500px] object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
+      {/* Images */}
+      {(recipe.images?.length > 0 || recipe.imageUrl) && (
+        <div className="mb-8">
+          <ImageCarousel
+            images={recipe.images?.length > 0 ? recipe.images : recipe.imageUrl ? [recipe.imageUrl] : []}
+            title={recipe.name}
           />
         </div>
       )}

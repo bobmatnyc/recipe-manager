@@ -18,7 +18,9 @@ interface RecipeCardProps {
 export function RecipeCard({ recipe, onDelete }: RecipeCardProps) {
   const router = useRouter();
   const tags = recipe.tags ? JSON.parse(recipe.tags as string) : [];
+  const images = recipe.images ? JSON.parse(recipe.images as string) : [];
   const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+  const displayImage = images[0] || recipe.imageUrl;
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this recipe?')) {
@@ -39,16 +41,21 @@ export function RecipeCard({ recipe, onDelete }: RecipeCardProps) {
 
   return (
     <Card className="h-full flex flex-col hover:shadow-lg transition-shadow">
-      {recipe.imageUrl && (
+      {displayImage && (
         <div className="aspect-video relative overflow-hidden rounded-t-lg">
           <img
-            src={recipe.imageUrl}
+            src={displayImage}
             alt={recipe.name}
             className="object-cover w-full h-full"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
+          {images.length > 1 && (
+            <Badge className="absolute bottom-2 left-2" variant="secondary">
+              {images.length} images
+            </Badge>
+          )}
           {recipe.isAiGenerated && (
             <Badge className="absolute top-2 right-2" variant="secondary">
               AI Generated

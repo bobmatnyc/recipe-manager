@@ -13,5 +13,8 @@ export function parseRecipe(recipe: Recipe) {
     tags: recipe.tags
       ? (typeof recipe.tags === 'string' ? JSON.parse(recipe.tags) : recipe.tags)
       : [],
+    images: recipe.images
+      ? (typeof recipe.images === 'string' ? JSON.parse(recipe.images) : recipe.images)
+      : [],
   };
 }

@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/popover';
 import { toast } from '@/lib/toast';
 import { Plus, X, Save, Loader2, Globe, Lock, Tag, TrendingUp } from 'lucide-react';
+import { ImageUploader } from './ImageUploader';
 
 interface RecipeFormProps {
   recipe?: Recipe;
@@ -42,6 +43,7 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
   const existingIngredients = recipe?.ingredients ? JSON.parse(recipe.ingredients as string) : [''];
   const existingInstructions = recipe?.instructions ? JSON.parse(recipe.instructions as string) : [''];
   const existingTags = recipe?.tags ? JSON.parse(recipe.tags as string) : [];
+  const existingImages = recipe?.images ? JSON.parse(recipe.images as string) : [];
 
   // Load available tags
   useEffect(() => {
@@ -66,6 +68,7 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
     cuisine: recipe?.cuisine || '',
     tags: existingTags as string[],
     imageUrl: recipe?.imageUrl || '',
+    images: existingImages as string[],
     isPublic: recipe?.isPublic || false,
   });
 
@@ -118,12 +121,13 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
         ingredients: JSON.stringify(filteredIngredients),
         instructions: JSON.stringify(filteredInstructions),
         tags: JSON.stringify(filteredTags),
+        images: formData.images.length > 0 ? JSON.stringify(formData.images) : null,
         prepTime: formData.prepTime || null,
         cookTime: formData.cookTime || null,
         servings: formData.servings || null,
         description: formData.description || null,
         cuisine: formData.cuisine || null,
-        imageUrl: formData.imageUrl || null,
+        imageUrl: formData.imageUrl || formData.images[0] || null, // Use first image as fallback
         isPublic: formData.isPublic,
       };
 
@@ -177,14 +181,12 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
                 placeholder="A brief description of the recipe"
               />
             </div>
-            <div>
-              <Label htmlFor="imageUrl">Image URL</Label>
-              <Input
-                id="imageUrl"
-                type="url"
-                value={formData.imageUrl}
-                onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                placeholder="https://example.com/image.jpg"
+            {/* Image Uploader */}
+            <div className="col-span-2">
+              <ImageUploader
+                images={formData.images}
+                onChange={(images) => setFormData(prev => ({ ...prev, images }))}
+                maxImages={6}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">

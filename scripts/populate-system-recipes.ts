@@ -38,6 +38,11 @@ const systemRecipes = [
     tags: JSON.stringify(["vegetarian", "classic", "italian"]),
     isPublic: true,
     isSystemRecipe: true,
+    images: JSON.stringify([
+      "https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=600&fit=crop"
+    ]),
     nutritionInfo: JSON.stringify({
       calories: 285,
       protein: 12,
@@ -79,6 +84,11 @@ const systemRecipes = [
     tags: JSON.stringify(["asian", "healthy", "rice-bowl"]),
     isPublic: true,
     isSystemRecipe: true,
+    images: JSON.stringify([
+      "https://images.unsplash.com/photo-1609501676725-7186f017a4b7?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop"
+    ]),
     nutritionInfo: JSON.stringify({
       calories: 420,
       protein: 28,
@@ -120,6 +130,11 @@ const systemRecipes = [
     tags: JSON.stringify(["vegetarian", "healthy", "salad", "gluten-free"]),
     isPublic: true,
     isSystemRecipe: true,
+    images: JSON.stringify([
+      "https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800&h=600&fit=crop"
+    ]),
     nutritionInfo: JSON.stringify({
       calories: 245,
       protein: 8,
@@ -162,6 +177,10 @@ const systemRecipes = [
     tags: JSON.stringify(["spicy", "asian", "curry", "gluten-free"]),
     isPublic: true,
     isSystemRecipe: true,
+    images: JSON.stringify([
+      "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1562565652-a0d8f0c59eb4?w=800&h=600&fit=crop"
+    ]),
     nutritionInfo: JSON.stringify({
       calories: 385,
       protein: 25,
@@ -203,6 +222,11 @@ const systemRecipes = [
     tags: JSON.stringify(["mexican", "quick", "family-friendly"]),
     isPublic: true,
     isSystemRecipe: true,
+    images: JSON.stringify([
+      "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1624300629298-e9de39c13be5?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1552332386-9e19b8a737f5?w=800&h=600&fit=crop"
+    ]),
     nutritionInfo: JSON.stringify({
       calories: 420,
       protein: 24,

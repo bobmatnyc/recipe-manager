@@ -16,7 +16,8 @@ export const recipes = pgTable('recipes', {
   difficulty: text('difficulty', { enum: ['easy', 'medium', 'hard'] }),
   cuisine: text('cuisine'),
   tags: text('tags'), // JSON array of strings
-  imageUrl: text('image_url'), // External URL only
+  imageUrl: text('image_url'), // External URL only (deprecated - kept for backwards compatibility)
+  images: text('images'), // JSON array of image URLs (up to 6)
   isAiGenerated: boolean('is_ai_generated').default(false),
   isPublic: boolean('is_public').default(false), // Recipe visibility
   isSystemRecipe: boolean('is_system_recipe').default(false), // System/curated recipes
