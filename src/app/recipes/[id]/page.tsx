@@ -12,7 +12,17 @@ import { notFound, useRouter } from 'next/navigation';
 import { exportRecipeAsMarkdown, exportRecipeAsPDF } from '@/app/actions/recipe-export';
 import { toast } from 'sonner';
 import { ImageCarousel } from '@/components/recipe/ImageCarousel';
-import { useUser } from '@clerk/nextjs';
+
+// Conditionally import Clerk hook
+let useUser: any = null;
+try {
+  const clerk = require('@clerk/nextjs');
+  useUser = clerk.useUser;
+} catch (error) {
+  // Clerk not available
+  console.log('Clerk not available in recipe page');
+}
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,8 +49,22 @@ export default function RecipePage({ params }: RecipePageProps) {
   const [deleting, setDeleting] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [requiresAuth, setRequiresAuth] = useState(false);
-  const { user, isSignedIn } = useUser();
   const router = useRouter();
+
+  // Safe Clerk usage - will return null values if Clerk is not configured
+  let user: any = null;
+  let isSignedIn = false;
+
+  if (useUser) {
+    try {
+      const clerkData = useUser();
+      user = clerkData.user;
+      isSignedIn = clerkData.isSignedIn || false;
+    } catch (error) {
+      // Clerk hook failed, use defaults
+      console.log('Clerk hook failed, using development mode');
+    }
+  }
 
   useEffect(() => {
     params.then(p => setRecipeId(p.id));

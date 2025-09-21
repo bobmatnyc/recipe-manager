@@ -1,33 +1,33 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { ClerkProvider, GoogleOneTap } from '@clerk/nextjs';
 
-// Check if we're in production (recipe.help domain) or local development
-const isProduction = typeof window !== 'undefined' &&
-                    (window.location.hostname.includes('recipe.help') ||
-                     window.location.hostname.includes('vercel.app'));
-
-// Only enable Clerk in production, disable for localhost
+// Check if Clerk is properly configured with valid keys
 const isClerkConfigured =
-  isProduction &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'YOUR_PUBLISHABLE_KEY';
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'YOUR_PUBLISHABLE_KEY' &&
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== '';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // If Clerk is not configured, just return children
   if (!isClerkConfigured) {
-    // Return children without ClerkProvider if not configured
     return <>{children}</>;
   }
 
-  // Import and use ClerkProvider and GoogleOneTap only when configured
-  const { ClerkProvider, GoogleOneTap } = require('@clerk/nextjs');
-
+  // Return ClerkProvider with GoogleOneTap
   return (
-    <ClerkProvider>
-      {/* GoogleOneTap provides seamless sign-in for users with Google accounts */}
+    <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+      appearance={{
+        elements: {
+          formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
+          card: 'shadow-lg',
+        }
+      }}
+    >
       <GoogleOneTap
         cancelOnTapOutside={true}
-        oauthStrategy="oauth_google"
       />
       {children}
     </ClerkProvider>

@@ -2,12 +2,13 @@
 
 import { ReactNode } from 'react';
 import Link from 'next/link';
+import { SignIn, SignUp, UserProfile } from '@clerk/nextjs';
 
 // Check if Clerk keys are configured
 const isClerkConfigured =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'YOUR_PUBLISHABLE_KEY' &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'pk_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== '';
 
 interface AuthPageWrapperProps {
   children: ReactNode;
@@ -54,8 +55,6 @@ export function SignInWrapper() {
     return null; // AuthPageWrapper will handle this
   }
 
-  const { SignIn } = require('@clerk/nextjs');
-
   return (
     <SignIn
       appearance={{
@@ -77,8 +76,6 @@ export function SignUpWrapper() {
   if (!isClerkConfigured) {
     return null; // AuthPageWrapper will handle this
   }
-
-  const { SignUp } = require('@clerk/nextjs');
 
   return (
     <SignUp
@@ -116,8 +113,6 @@ export function UserProfilePageWrapper() {
       </div>
     );
   }
-
-  const { UserProfile } = require('@clerk/nextjs');
 
   return (
     <UserProfile
