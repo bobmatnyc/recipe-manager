@@ -24,26 +24,66 @@ export async function middleware(request: NextRequest) {
   const { clerkMiddleware, createRouteMatcher } = await import('@clerk/nextjs/server');
 
   // Define public routes that don't require authentication
+  // These routes are accessible to everyone
   const isPublicRoute = createRouteMatcher([
-    '/',
-    '/sign-in(.*)',
-    '/sign-up(.*)',
-    '/discover(.*)',
-    '/api/webhooks(.*)',
+    '/',                      // Homepage
+    '/sign-in(.*)',          // Sign in pages
+    '/sign-up(.*)',          // Sign up pages
+    '/shared(.*)',           // Shared recipes browsing
+    '/discover(.*)',         // Discover/AI recipe generation (read-only browsing)
+    '/api/webhooks(.*)',     // Webhooks
   ]);
 
-  // Define protected routes that require authentication
+  // Define routes that are conditionally protected
+  // These need special handling based on the specific path and method
+  const isRecipeViewRoute = createRouteMatcher([
+    '/recipes/[^/]+$',       // Viewing individual recipes (not /new or /edit)
+  ]);
+
+  // Define strictly protected routes that always require authentication
   const isProtectedRoute = createRouteMatcher([
-    '/recipes(.*)',
-    '/api/recipes(.*)',
+    '/recipes/new(.*)',      // Creating new recipes
+    '/recipes/.*/edit(.*)',  // Editing recipes
+    '/recipes$',             // My Recipes listing (personal collection)
+    '/meal-plans(.*)',       // Meal planning
+    '/shopping-lists(.*)',   // Shopping lists
+  ]);
+
+  // Define protected API routes
+  const isProtectedApiRoute = createRouteMatcher([
+    '/api/recipes/create',
+    '/api/recipes/update',
+    '/api/recipes/delete',
+    '/api/meal-plans(.*)',
+    '/api/shopping-lists(.*)',
   ]);
 
   // Use the clerkMiddleware with route protection logic
   return clerkMiddleware(async (auth, req) => {
     const { userId } = await auth();
+    const path = req.nextUrl.pathname;
 
-    // If accessing a protected route without authentication, redirect to sign-in
-    if (!userId && isProtectedRoute(req)) {
+    // Check if this is a recipe view route (e.g., /recipes/123) but NOT /recipes/new or /recipes/*/edit
+    const isViewingRecipe = path.match(/^\/recipes\/[a-zA-Z0-9-]+$/) &&
+                           !path.endsWith('/new') &&
+                           !path.includes('/edit');
+
+    // If it's a recipe view route, allow it (the page itself will check if the recipe is public)
+    if (isViewingRecipe) {
+      return NextResponse.next();
+    }
+
+    // If accessing a strictly protected route without authentication, redirect to sign-in
+    if (!userId && (isProtectedRoute(req) || isProtectedApiRoute(req))) {
+      // For API routes, return 401 instead of redirecting
+      if (path.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+
+      // For regular routes, redirect to sign-in with return URL
       const signInUrl = new URL('/sign-in', req.url);
       signInUrl.searchParams.set('redirect_url', req.url);
       return NextResponse.redirect(signInUrl);

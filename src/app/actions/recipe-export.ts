@@ -1,9 +1,9 @@
 'use server';
 
-import { auth } from '@clerk/nextjs/server';
+import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { recipes } from '@/lib/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, or } from 'drizzle-orm';
 import { recipeToMarkdown, generateRecipeFilename } from '@/lib/utils/markdown-formatter';
 import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
@@ -14,20 +14,18 @@ import { jsPDF } from 'jspdf';
 export async function exportRecipeAsMarkdown(recipeId: string) {
   const { userId } = await auth();
 
-  if (!userId) {
-    throw new Error('Unauthorized');
-  }
-
-  // Fetch the recipe with validation
+  // Fetch the recipe - allow public recipes or user's own recipes
   const recipe = await db.query.recipes.findFirst({
-    where: and(
-      eq(recipes.id, recipeId),
-      eq(recipes.userId, userId)
-    ),
+    where: userId
+      ? or(
+          and(eq(recipes.id, recipeId), eq(recipes.userId, userId)),
+          and(eq(recipes.id, recipeId), eq(recipes.isPublic, true))
+        )
+      : and(eq(recipes.id, recipeId), eq(recipes.isPublic, true)),
   });
 
   if (!recipe) {
-    throw new Error('Recipe not found');
+    throw new Error('Recipe not found or access denied');
   }
 
   // Convert to markdown
@@ -131,20 +129,18 @@ export async function exportAllRecipesAsZip() {
 export async function exportRecipeAsPDF(recipeId: string) {
   const { userId } = await auth();
 
-  if (!userId) {
-    throw new Error('Unauthorized');
-  }
-
-  // Fetch the recipe with validation
+  // Fetch the recipe - allow public recipes or user's own recipes
   const recipe = await db.query.recipes.findFirst({
-    where: and(
-      eq(recipes.id, recipeId),
-      eq(recipes.userId, userId)
-    ),
+    where: userId
+      ? or(
+          and(eq(recipes.id, recipeId), eq(recipes.userId, userId)),
+          and(eq(recipes.id, recipeId), eq(recipes.isPublic, true))
+        )
+      : and(eq(recipes.id, recipeId), eq(recipes.isPublic, true)),
   });
 
   if (!recipe) {
-    throw new Error('Recipe not found');
+    throw new Error('Recipe not found or access denied');
   }
 
   // Parse JSON fields

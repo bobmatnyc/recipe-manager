@@ -95,3 +95,40 @@ export function SignUpWrapper() {
     />
   );
 }
+
+// Client component wrapper for UserProfile
+export function UserProfilePageWrapper() {
+  if (!isClerkConfigured) {
+    // Show a message when Clerk is not configured
+    return (
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          User profile management is not available in development mode.
+        </p>
+        <div className="mt-4">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Return to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const { UserProfile } = require('@clerk/nextjs');
+
+  return (
+    <UserProfile
+      appearance={{
+        elements: {
+          rootBox: 'mx-auto',
+          card: 'shadow-none border rounded-lg',
+        },
+      }}
+      path="/user-profile"
+      routing="path"
+    />
+  );
+}

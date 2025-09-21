@@ -20,11 +20,13 @@ export default async function EditRecipePage({ params }: EditRecipePageProps) {
   // Skip auth check for localhost development
   const isLocalhost = process.env.NODE_ENV === 'development';
 
+  const { id } = await params;
+
   if (!userId && !isLocalhost) {
-    redirect('/sign-in');
+    // Redirect to sign-in with return URL
+    redirect(`/sign-in?returnUrl=/recipes/${id}/edit`);
   }
 
-  const { id } = await params;
   const result = await getRecipe(id);
 
   if (!result.success || !result.data) {

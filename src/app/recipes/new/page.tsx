@@ -14,7 +14,8 @@ export default async function NewRecipePage() {
   const isLocalhost = process.env.NODE_ENV === 'development';
 
   if (!userId && !isLocalhost) {
-    redirect('/sign-in');
+    // Redirect to sign-in with return URL
+    redirect('/sign-in?returnUrl=/recipes/new');
   }
 
   return (

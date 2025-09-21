@@ -1,17 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getRecipe } from '@/app/actions/recipes';
+import { getRecipe, deleteRecipe } from '@/app/actions/recipes';
 import { parseRecipe } from '@/lib/utils/recipe-utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, Clock, Users, ChefHat, Edit, Printer, Bot, Download, FileText, FileDown } from 'lucide-react';
+import { ChevronLeft, Clock, Users, ChefHat, Edit, Printer, Bot, Download, FileText, FileDown, Trash2, Lock } from 'lucide-react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { exportRecipeAsMarkdown, exportRecipeAsPDF } from '@/app/actions/recipe-export';
 import { toast } from 'sonner';
 import { ImageCarousel } from '@/components/recipe/ImageCarousel';
+import { useUser } from '@clerk/nextjs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface RecipePageProps {
   params: Promise<{
@@ -24,6 +35,12 @@ export default function RecipePage({ params }: RecipePageProps) {
   const [loading, setLoading] = useState(true);
   const [recipeId, setRecipeId] = useState<string>('');
   const [exporting, setExporting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [requiresAuth, setRequiresAuth] = useState(false);
+  const { user, isSignedIn } = useUser();
+  const router = useRouter();
 
   useEffect(() => {
     params.then(p => setRecipeId(p.id));
@@ -34,15 +51,34 @@ export default function RecipePage({ params }: RecipePageProps) {
 
     async function fetchRecipe() {
       const result = await getRecipe(recipeId);
+
       if (!result.success || !result.data) {
+        // Check if it's an access denied error for private recipe
+        if (result.error === 'Access denied' && !isSignedIn) {
+          setRequiresAuth(true);
+          setLoading(false);
+          return;
+        }
         notFound();
         return;
       }
-      setRecipe(parseRecipe(result.data));
+
+      const parsedRecipe = parseRecipe(result.data);
+      setRecipe(parsedRecipe);
+
+      // Check if current user is the owner
+      // In development mode (no auth), treat all recipes as owned
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      if (isDevelopment && !isSignedIn) {
+        setIsOwner(true);
+      } else if (isSignedIn && user?.id === result.data.userId) {
+        setIsOwner(true);
+      }
+
       setLoading(false);
     }
     fetchRecipe();
-  }, [recipeId]);
+  }, [recipeId, isSignedIn, user]);
 
   const handleExportMarkdown = async () => {
     try {
@@ -101,8 +137,60 @@ export default function RecipePage({ params }: RecipePageProps) {
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      const result = await deleteRecipe(recipeId);
+
+      if (result.success) {
+        toast.success('Recipe deleted successfully');
+        router.push('/recipes');
+      } else {
+        toast.error(result.error || 'Failed to delete recipe');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete recipe');
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (loading) {
     return <div className="container mx-auto py-8 px-4">Loading...</div>;
+  }
+
+  // Show auth required message for private recipes when not signed in
+  if (requiresAuth && !isSignedIn) {
+    return (
+      <div className="container mx-auto py-8 px-4 max-w-4xl">
+        <Link
+          href="/recipes"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6"
+        >
+          <ChevronLeft className="w-4 h-4 mr-1" />
+          Back to Recipes
+        </Link>
+
+        <Card className="max-w-md mx-auto mt-8">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Lock className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <CardTitle>Private Recipe</CardTitle>
+            <CardDescription>
+              This recipe is private. Please sign in to view it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Link href="/sign-in">
+              <Button>Sign In to View Recipe</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (!recipe) {
@@ -131,12 +219,24 @@ export default function RecipePage({ params }: RecipePageProps) {
             )}
           </div>
           <div className="flex gap-2">
-            <Link href={`/recipes/${recipeId}/edit`}>
-              <Button variant="outline">
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-            </Link>
+            {isOwner && (
+              <>
+                <Link href={`/recipes/${recipeId}/edit`}>
+                  <Button variant="outline">
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={deleting}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              </>
+            )}
             <div className="relative group">
               <Button
                 variant="outline"
@@ -280,6 +380,27 @@ export default function RecipePage({ params }: RecipePageProps) {
         </Card>
       </div>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recipe</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{recipe.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
