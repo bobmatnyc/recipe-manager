@@ -36,12 +36,12 @@ import path from 'path';
 import { sql } from 'drizzle-orm';
 import { db } from '../../src/lib/db';
 import { recipes, recipeEmbeddings } from '../../src/lib/db/schema';
-import { evaluateRecipeQuality } from '../../src/lib/ai/recipe-quality-evaluator';
+import { evaluateRecipeQuality } from '../lib/recipe-quality-evaluator-script';
 import { generateEmbedding } from '../../src/lib/ai/embeddings';
 
 // Constants
 const DATA_DIR = path.join(process.cwd(), 'data/recipes/incoming/epicurious');
-const JSON_FILE = 'epi_r.json';
+const JSON_FILE = 'full_format_recipes.json'; // Updated: actual filename from Kaggle
 const LOG_DIR = path.join(DATA_DIR, 'logs');
 const SYSTEM_USER_ID = 'system_imported';
 const DEFAULT_BATCH_SIZE = 500; // Smaller than Food.com due to longer content
@@ -397,9 +397,14 @@ async function ingestRecipe(
     }
 
     // Step 2: Generate embedding for semantic search
+    // TEMPORARILY DISABLED - Hugging Face API issues
     let embeddingVector: number[] | null = null;
     let embeddingText = '';
 
+    // Skip embedding generation for now
+    console.log(`${progress}   Embedding: Skipped (temporarily disabled)`);
+
+    /* COMMENTED OUT - TO BE RE-ENABLED AFTER HUGGING FACE API FIX
     try {
       const parts = [
         recipe.name,
@@ -420,6 +425,7 @@ async function ingestRecipe(
     } catch (error: any) {
       console.warn(`${progress}   Embedding generation failed: ${error.message}`);
     }
+    */
 
     // Step 3: Insert recipe into database
     const [insertedRecipe] = await db
