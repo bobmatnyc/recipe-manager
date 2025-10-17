@@ -9,7 +9,7 @@
  * Run: tsx scripts/data-acquisition/test-openrecipes-parsers.ts
  */
 
-console.log('\n' + '='.repeat(80));
+console.log(`\n${'='.repeat(80)}`);
 console.log('  OPENRECIPES PARSER TEST SUITE');
 console.log('='.repeat(80));
 
@@ -52,19 +52,15 @@ function parseISO8601Duration(duration: string | undefined): number | null {
 
     if (!match) return null;
 
-    const days = parseInt(match[1] || '0');
-    const hours = parseInt(match[2] || '0');
-    const minutes = parseInt(match[3] || '0');
-    const seconds = parseInt(match[4] || '0');
+    const days = parseInt(match[1] || '0', 10);
+    const hours = parseInt(match[2] || '0', 10);
+    const minutes = parseInt(match[3] || '0', 10);
+    const seconds = parseInt(match[4] || '0', 10);
 
-    const totalMinutes =
-      days * 24 * 60 +
-      hours * 60 +
-      minutes +
-      Math.ceil(seconds / 60);
+    const totalMinutes = days * 24 * 60 + hours * 60 + minutes + Math.ceil(seconds / 60);
 
     return totalMinutes > 0 ? totalMinutes : null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -117,13 +113,13 @@ function parseInstructions(instructions: any): string[] {
   if (typeof instructions === 'string') {
     return instructions
       .split(/\r?\n/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   if (Array.isArray(instructions)) {
     return instructions
-      .map(step => {
+      .map((step) => {
         if (typeof step === 'string') {
           return step.trim();
         }
@@ -143,8 +139,8 @@ function parseInstructions(instructions: any): string[] {
         }
         return typeof step === 'object' ? JSON.stringify(step) : String(step);
       })
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   if (instructions['@type'] === 'HowToStep') {
@@ -228,7 +224,7 @@ function parseImages(image: any): string[] {
 
   if (Array.isArray(image)) {
     return image
-      .map(img => {
+      .map((img) => {
         if (typeof img === 'string') {
           return img;
         }
@@ -312,7 +308,7 @@ function parseServings(recipeYield: any): number | null {
 
   if (typeof recipeYield === 'string') {
     const match = recipeYield.match(/(\d+)/);
-    return match ? Math.max(1, parseInt(match[1])) : null;
+    return match ? Math.max(1, parseInt(match[1], 10)) : null;
   }
 
   return null;
@@ -459,7 +455,7 @@ test('Invalid recipe: no instructions', () => {
 // Summary
 // ============================================================================
 
-console.log('\n' + '='.repeat(80));
+console.log(`\n${'='.repeat(80)}`);
 console.log('  TEST SUMMARY');
 console.log('='.repeat(80));
 console.log(`Total Tests: ${passed + failed}`);

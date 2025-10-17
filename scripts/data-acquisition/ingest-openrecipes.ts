@@ -37,13 +37,13 @@
  *   tsx scripts/data-acquisition/ingest-openrecipes.ts --file sample.json # Specific file only
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { sql } from 'drizzle-orm';
-import { db } from '../../src/lib/db';
-import { recipes, recipeEmbeddings } from '../../src/lib/db/schema';
-import { evaluateRecipeQuality } from '../../src/lib/ai/recipe-quality-evaluator';
 import { generateEmbedding } from '../../src/lib/ai/embeddings';
+import { evaluateRecipeQuality } from '../../src/lib/ai/recipe-quality-evaluator';
+import { db } from '../../src/lib/db';
+import { recipeEmbeddings, recipes } from '../../src/lib/db/schema';
 
 // Constants
 const DATA_DIR = path.join(process.cwd(), 'data/recipes/incoming/openrecipes');
@@ -113,20 +113,16 @@ function parseISO8601Duration(duration: string | undefined): number | null {
 
     if (!match) return null;
 
-    const days = parseInt(match[1] || '0');
-    const hours = parseInt(match[2] || '0');
-    const minutes = parseInt(match[3] || '0');
-    const seconds = parseInt(match[4] || '0');
+    const days = parseInt(match[1] || '0', 10);
+    const hours = parseInt(match[2] || '0', 10);
+    const minutes = parseInt(match[3] || '0', 10);
+    const seconds = parseInt(match[4] || '0', 10);
 
     // Convert everything to minutes
-    const totalMinutes =
-      days * 24 * 60 +
-      hours * 60 +
-      minutes +
-      Math.ceil(seconds / 60);
+    const totalMinutes = days * 24 * 60 + hours * 60 + minutes + Math.ceil(seconds / 60);
 
     return totalMinutes > 0 ? totalMinutes : null;
-  } catch (error) {
+  } catch (_error) {
     console.warn(`[Parser] Failed to parse ISO 8601 duration: "${duration}"`);
     return null;
   }
@@ -143,14 +139,14 @@ function parseInstructions(instructions: any): string[] {
   if (typeof instructions === 'string') {
     return instructions
       .split(/\r?\n/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   // Array of steps
   if (Array.isArray(instructions)) {
     return instructions
-      .map(step => {
+      .map((step) => {
         if (typeof step === 'string') {
           return step.trim();
         }
@@ -178,8 +174,8 @@ function parseInstructions(instructions: any): string[] {
         // Last resort: stringify
         return typeof step === 'object' ? JSON.stringify(step) : String(step);
       })
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   // Single HowToStep object
@@ -215,17 +211,17 @@ function parseIngredients(ingredients: any): string[] {
   // Array of strings (most common)
   if (Array.isArray(ingredients)) {
     return ingredients
-      .map(ing => (typeof ing === 'string' ? ing : String(ing)))
-      .map(ing => ing.trim())
-      .filter(ing => ing.length > 0);
+      .map((ing) => (typeof ing === 'string' ? ing : String(ing)))
+      .map((ing) => ing.trim())
+      .filter((ing) => ing.length > 0);
   }
 
   // Single string with newlines
   if (typeof ingredients === 'string') {
     return ingredients
       .split(/\r?\n/)
-      .map(ing => ing.trim())
-      .filter(ing => ing.length > 0);
+      .map((ing) => ing.trim())
+      .filter((ing) => ing.length > 0);
   }
 
   return [];
@@ -246,7 +242,7 @@ function parseImages(image: any): string[] {
   // Array of URLs or ImageObjects
   if (Array.isArray(image)) {
     return image
-      .map(img => {
+      .map((img) => {
         if (typeof img === 'string') {
           return img;
         }
@@ -292,7 +288,7 @@ function parseServings(recipeYield: any): number | null {
   if (typeof recipeYield === 'string') {
     const match = recipeYield.match(/(\d+)/);
     if (match) {
-      return Math.max(1, parseInt(match[1]));
+      return Math.max(1, parseInt(match[1], 10));
     }
   }
 
@@ -423,7 +419,7 @@ function extractTags(recipe: OpenRecipe): string[] {
     const keywords = Array.isArray(recipe.keywords)
       ? recipe.keywords
       : recipe.keywords.split(/[,;]/);
-    keywords.forEach(k => tags.add(k.trim()));
+    keywords.forEach((k) => tags.add(k.trim()));
   }
 
   // Add categories
@@ -431,10 +427,10 @@ function extractTags(recipe: OpenRecipe): string[] {
     const categories = Array.isArray(recipe.recipeCategory)
       ? recipe.recipeCategory
       : [recipe.recipeCategory];
-    categories.forEach(c => tags.add(c.trim()));
+    categories.forEach((c) => tags.add(c.trim()));
   }
 
-  return Array.from(tags).filter(t => t.length > 0);
+  return Array.from(tags).filter((t) => t.length > 0);
 }
 
 /**
@@ -450,7 +446,7 @@ function validateAndParseDate(dateString: string | undefined | null): Date | nul
 
   try {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return null;
+    if (Number.isNaN(date.getTime())) return null;
 
     const year = date.getFullYear();
     if (year < 1900 || year > 2030) return null;
@@ -466,12 +462,8 @@ function validateAndParseDate(dateString: string | undefined | null): Date | nul
  */
 function transformRecipe(openRecipe: OpenRecipe, filename: string) {
   const name = openRecipe.name || openRecipe.title || 'Untitled Recipe';
-  const ingredients = parseIngredients(
-    openRecipe.recipeIngredient || openRecipe.ingredients
-  );
-  const instructions = parseInstructions(
-    openRecipe.recipeInstructions || openRecipe.instructions
-  );
+  const ingredients = parseIngredients(openRecipe.recipeIngredient || openRecipe.ingredients);
+  const instructions = parseInstructions(openRecipe.recipeInstructions || openRecipe.instructions);
   const images = parseImages(openRecipe.image);
   const tags = extractTags(openRecipe);
 
@@ -506,11 +498,7 @@ function transformRecipe(openRecipe: OpenRecipe, filename: string) {
  * Checks if a recipe already exists in the database
  * Checks by name + source, and by source URL if available
  */
-async function checkDuplicate(
-  name: string,
-  source: string,
-  sourceUrl?: string
-): Promise<boolean> {
+async function checkDuplicate(name: string, source: string, sourceUrl?: string): Promise<boolean> {
   // Check by URL first (most reliable)
   if (sourceUrl) {
     const byUrl = await db
@@ -552,11 +540,7 @@ async function ingestRecipe(
     }
 
     // Check for duplicates
-    const isDuplicate = await checkDuplicate(
-      recipe.name,
-      recipe.source,
-      recipe.sourceUrl
-    );
+    const isDuplicate = await checkDuplicate(recipe.name, recipe.source, recipe.sourceUrl);
     if (isDuplicate) {
       console.log(`${progress} ⊘ Skipped "${recipe.name}" (duplicate)`);
       return { success: true, skipped: true };
@@ -657,7 +641,6 @@ async function ingestRecipe(
 
     console.log(`${progress} ✓ Stored "${recipe.name}"`);
     return { success: true, recipeId: insertedRecipe.id };
-
   } catch (error: any) {
     console.error(`${progress} ✗ Failed to store "${recipe.name}": ${error.message}`);
     return { success: false, error: error.message };
@@ -727,7 +710,7 @@ async function ingestOpenRecipes(
     startTime: new Date(),
   };
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  OPENRECIPES RECIPE INGESTION PIPELINE');
   console.log('='.repeat(80));
   console.log(`Started: ${stats.startTime.toISOString()}`);
@@ -747,11 +730,11 @@ async function ingestOpenRecipes(
     } else {
       // Find all JSON files in data directory
       const allFiles = fs.readdirSync(DATA_DIR);
-      filesToProcess = allFiles.filter(f => f.endsWith('.json') && f !== 'metadata.json');
+      filesToProcess = allFiles.filter((f) => f.endsWith('.json') && f !== 'metadata.json');
     }
 
     console.log(`\n[OpenRecipes] Files to process: ${filesToProcess.length}`);
-    filesToProcess.forEach(f => console.log(`  - ${f}`));
+    filesToProcess.forEach((f) => console.log(`  - ${f}`));
     console.log('='.repeat(80));
 
     // Process each file
@@ -798,14 +781,18 @@ async function ingestOpenRecipes(
 
         // Rate limiting delay
         if (i < openRecipes.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
         }
 
         // Progress update every batch
         if ((i + 1) % batchSize === 0 || i === openRecipes.length - 1) {
-          console.log('\n' + '-'.repeat(80));
-          console.log(`BATCH ${batchNum} COMPLETE - Progress: ${i + 1}/${openRecipes.length} recipes processed`);
-          console.log(`Success: ${stats.success} | Skipped: ${stats.skipped} | Failed: ${stats.failed}`);
+          console.log(`\n${'-'.repeat(80)}`);
+          console.log(
+            `BATCH ${batchNum} COMPLETE - Progress: ${i + 1}/${openRecipes.length} recipes processed`
+          );
+          console.log(
+            `Success: ${stats.success} | Skipped: ${stats.skipped} | Failed: ${stats.failed}`
+          );
           console.log('-'.repeat(80));
         }
       }
@@ -824,7 +811,6 @@ async function ingestOpenRecipes(
 
     // Print final summary
     printSummary(stats);
-
   } catch (error: any) {
     console.error('\n[OpenRecipes] Fatal error:', error.message);
     console.error(error.stack);
@@ -848,9 +834,7 @@ async function saveIngestionLog(stats: IngestionStats): Promise<void> {
 
     const logData = {
       ...stats,
-      duration: stats.endTime
-        ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000
-        : null,
+      duration: stats.endTime ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000 : null,
     };
 
     fs.writeFileSync(logFile, JSON.stringify(logData, null, 2));
@@ -864,11 +848,9 @@ async function saveIngestionLog(stats: IngestionStats): Promise<void> {
  * Prints final summary
  */
 function printSummary(stats: IngestionStats): void {
-  const duration = stats.endTime
-    ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000
-    : 0;
+  const duration = stats.endTime ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000 : 0;
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  INGESTION COMPLETE');
   console.log('='.repeat(80));
   console.log(`Total Recipes: ${stats.total}`);
@@ -880,7 +862,7 @@ function printSummary(stats: IngestionStats): void {
 
   if (stats.errors.length > 0) {
     console.log(`\nErrors (showing first 20):`);
-    stats.errors.slice(0, 20).forEach(err => {
+    stats.errors.slice(0, 20).forEach((err) => {
       console.log(`  - ${err.recipe}: ${err.error}`);
     });
 
@@ -900,7 +882,7 @@ if (require.main === module) {
   const limitIndex = args.indexOf('--limit');
   let maxRecipes: number | undefined;
   if (limitIndex !== -1 && args[limitIndex + 1]) {
-    maxRecipes = parseInt(args[limitIndex + 1]);
+    maxRecipes = parseInt(args[limitIndex + 1], 10);
     args.splice(limitIndex, 2);
   }
 
@@ -911,9 +893,9 @@ if (require.main === module) {
     args.splice(fileIndex, 2);
   }
 
-  const batchSize = args[0] ? parseInt(args[0]) : DEFAULT_BATCH_SIZE;
+  const batchSize = args[0] ? parseInt(args[0], 10) : DEFAULT_BATCH_SIZE;
   if (!maxRecipes && args[1]) {
-    maxRecipes = parseInt(args[1]);
+    maxRecipes = parseInt(args[1], 10);
   }
 
   console.log('\n[OpenRecipes] Starting ingestion...');
@@ -925,10 +907,10 @@ if (require.main === module) {
   }
 
   ingestOpenRecipes(batchSize, maxRecipes, specificFile)
-    .then(stats => {
+    .then((stats) => {
       process.exit(stats.failed > 0 ? 1 : 0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });

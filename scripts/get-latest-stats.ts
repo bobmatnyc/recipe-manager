@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
-import { db } from '../src/lib/db';
 import { sql } from 'drizzle-orm';
+import { db } from '../src/lib/db';
 
 async function getLatestStats() {
   try {
@@ -38,7 +38,6 @@ async function getLatestStats() {
     }
 
     console.log('='.repeat(70));
-
   } catch (error: any) {
     console.error('Error:', error.message);
     throw error;
@@ -47,7 +46,7 @@ async function getLatestStats() {
 
 getLatestStats()
   .then(() => process.exit(0))
-  .catch(error => {
+  .catch((error) => {
     console.error(error);
     process.exit(1);
   });

@@ -20,9 +20,9 @@
  *   tsx scripts/data-acquisition/download-epicurious.ts
  */
 
-import fs from 'fs';
-import path from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // Constants
 const DATA_DIR = path.join(process.cwd(), 'data/recipes/incoming/epicurious');
@@ -66,16 +66,17 @@ function checkKaggleCLI(): { installed: boolean; configured: boolean; error?: st
       return {
         installed: true,
         configured: false,
-        error: 'Kaggle credentials not configured. Please create kaggle.json from Kaggle account settings.'
+        error:
+          'Kaggle credentials not configured. Please create kaggle.json from Kaggle account settings.',
       };
     }
-  } catch (error: any) {
+  } catch (_error: any) {
     console.error('[Kaggle] ✗ Kaggle CLI not found');
     console.error('[Kaggle]   Install with: pip install kaggle');
     return {
       installed: false,
       configured: false,
-      error: 'Kaggle CLI not installed. Install with: pip install kaggle'
+      error: 'Kaggle CLI not installed. Install with: pip install kaggle',
     };
   }
 }
@@ -117,13 +118,12 @@ function downloadDataset(): { success: boolean; error?: string } {
 
     console.log('[Download] ✓ Download complete');
     return { success: true };
-
   } catch (error: any) {
     console.error('[Download] ✗ Download failed');
     console.error(`[Download] Error: ${error.message}`);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -131,7 +131,12 @@ function downloadDataset(): { success: boolean; error?: string } {
 /**
  * Verifies the downloaded files
  */
-function verifyDownload(): { verified: boolean; recordCount: number; fileSize: number; error?: string } {
+function verifyDownload(): {
+  verified: boolean;
+  recordCount: number;
+  fileSize: number;
+  error?: string;
+} {
   console.log('\n[Verify] Verifying downloaded files...');
 
   const jsonPath = path.join(DATA_DIR, EXPECTED_JSON_FILE);
@@ -142,7 +147,7 @@ function verifyDownload(): { verified: boolean; recordCount: number; fileSize: n
       verified: false,
       recordCount: 0,
       fileSize: 0,
-      error: `Expected file not found: ${EXPECTED_JSON_FILE}`
+      error: `Expected file not found: ${EXPECTED_JSON_FILE}`,
     };
   }
 
@@ -168,7 +173,6 @@ function verifyDownload(): { verified: boolean; recordCount: number; fileSize: n
       recordCount,
       fileSize: stats.size,
     };
-
   } catch (error: any) {
     console.error('[Verify] ✗ Failed to parse JSON file');
     console.error(`[Verify] Error: ${error.message}`);
@@ -176,7 +180,7 @@ function verifyDownload(): { verified: boolean; recordCount: number; fileSize: n
       verified: false,
       recordCount: 0,
       fileSize: stats.size,
-      error: `Failed to parse JSON: ${error.message}`
+      error: `Failed to parse JSON: ${error.message}`,
     };
   }
 }
@@ -220,7 +224,7 @@ function printSummary(
   const endTime = new Date();
   const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  DOWNLOAD SUMMARY');
   console.log('='.repeat(80));
   console.log(`Dataset: ${DATASET_NAME}`);
@@ -238,7 +242,7 @@ function printSummary(
 async function main(): Promise<void> {
   const startTime = new Date();
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  EPICURIOUS DATASET DOWNLOADER');
   console.log('='.repeat(80));
   console.log(`Started: ${startTime.toISOString()}`);
@@ -283,7 +287,6 @@ async function main(): Promise<void> {
 
     console.log('\n[Complete] Ready for ingestion!');
     console.log('[Complete] Run: pnpm data:epicurious:ingest\n');
-
   } catch (error: any) {
     console.error('\n[Fatal Error]', error.message);
     console.error(error.stack);

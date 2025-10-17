@@ -35,9 +35,9 @@
  *   tsx scripts/data-acquisition/download-openrecipes.ts --sample
  */
 
-import fs from 'fs';
-import path from 'path';
-import https from 'https';
+import fs from 'node:fs';
+import https from 'node:https';
+import path from 'node:path';
 
 // Constants
 const DATA_DIR = path.join(process.cwd(), 'data/recipes/incoming/openrecipes');
@@ -81,52 +81,55 @@ async function downloadFile(url: string, outputPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
     console.log(`[Download] Fetching: ${url}`);
 
-    https.get(url, (response) => {
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        // Handle redirects
-        const redirectUrl = response.headers.location;
-        if (redirectUrl) {
-          console.log(`[Download] Following redirect to: ${redirectUrl}`);
-          downloadFile(redirectUrl, outputPath).then(resolve).catch(reject);
+    https
+      .get(url, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          // Handle redirects
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            console.log(`[Download] Following redirect to: ${redirectUrl}`);
+            downloadFile(redirectUrl, outputPath).then(resolve).catch(reject);
+            return;
+          }
+        }
+
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
           return;
         }
-      }
 
-      if (response.statusCode !== 200) {
-        reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
-        return;
-      }
+        const totalSize = parseInt(response.headers['content-length'] || '0', 10);
+        let downloadedSize = 0;
 
-      const totalSize = parseInt(response.headers['content-length'] || '0');
-      let downloadedSize = 0;
+        const fileStream = fs.createWriteStream(outputPath);
 
-      const fileStream = fs.createWriteStream(outputPath);
+        response.on('data', (chunk) => {
+          downloadedSize += chunk.length;
+          if (totalSize > 0) {
+            const percent = ((downloadedSize / totalSize) * 100).toFixed(1);
+            process.stdout.write(
+              `\r[Download] Progress: ${percent}% (${formatBytes(downloadedSize)} / ${formatBytes(totalSize)})`
+            );
+          }
+        });
 
-      response.on('data', (chunk) => {
-        downloadedSize += chunk.length;
-        if (totalSize > 0) {
-          const percent = ((downloadedSize / totalSize) * 100).toFixed(1);
-          process.stdout.write(`\r[Download] Progress: ${percent}% (${formatBytes(downloadedSize)} / ${formatBytes(totalSize)})`);
-        }
-      });
+        response.pipe(fileStream);
 
-      response.pipe(fileStream);
+        fileStream.on('finish', () => {
+          fileStream.close();
+          process.stdout.write('\n');
+          console.log(`[Download] ✓ Saved to: ${outputPath}`);
+          resolve(downloadedSize);
+        });
 
-      fileStream.on('finish', () => {
-        fileStream.close();
-        process.stdout.write('\n');
-        console.log(`[Download] ✓ Saved to: ${outputPath}`);
-        resolve(downloadedSize);
-      });
-
-      fileStream.on('error', (error) => {
-        fs.unlink(outputPath, () => {}); // Delete partial file
+        fileStream.on('error', (error) => {
+          fs.unlink(outputPath, () => {}); // Delete partial file
+          reject(error);
+        });
+      })
+      .on('error', (error) => {
         reject(error);
       });
-
-    }).on('error', (error) => {
-      reject(error);
-    });
   });
 }
 
@@ -162,7 +165,7 @@ function formatBytes(bytes: number): string {
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  return `${(bytes / k ** i).toFixed(2)} ${sizes[i]}`;
 }
 
 /**
@@ -186,7 +189,7 @@ async function downloadOpenRecipes(options: {
   all?: boolean;
   sample?: boolean;
 }): Promise<void> {
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  OPENRECIPES DATASET DOWNLOADER');
   console.log('='.repeat(80));
   console.log(`Repository: https://github.com/openrecipes/openrecipes`);
@@ -225,7 +228,7 @@ async function downloadOpenRecipes(options: {
   } else {
     console.log('[Download] No sources specified. Use --all or --sources=name1,name2\n');
     console.log('Available sources:');
-    Object.keys(RECIPE_SOURCES).forEach(source => {
+    Object.keys(RECIPE_SOURCES).forEach((source) => {
       console.log(`  - ${source}`);
     });
     console.log('\nExample: tsx download-openrecipes.ts --sources=allrecipes,foodnetwork');
@@ -282,20 +285,20 @@ async function downloadOpenRecipes(options: {
       metadata.totalRecords += recordCount;
 
       console.log(`[Download] ✓ Completed: ${source}`);
-
     } catch (error: any) {
       console.error(`[Download] ✗ Failed to download ${source}: ${error.message}`);
 
       // Check for specific error patterns
       if (error.message.includes('404')) {
-        console.error(`[Download] File not found on GitHub. The repository structure may have changed.`);
-        console.error(`[Download] Manual download may be required from: https://github.com/openrecipes/openrecipes`);
+        console.error(
+          `[Download] File not found on GitHub. The repository structure may have changed.`
+        );
+        console.error(
+          `[Download] Manual download may be required from: https://github.com/openrecipes/openrecipes`
+        );
       }
 
       metadata.status = 'partial';
-
-      // Continue with other files
-      continue;
     }
   }
 
@@ -303,7 +306,7 @@ async function downloadOpenRecipes(options: {
   saveMetadata(metadata);
 
   // Print summary
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  DOWNLOAD COMPLETE');
   console.log('='.repeat(80));
   console.log(`Status: ${metadata.status.toUpperCase()}`);
@@ -311,8 +314,10 @@ async function downloadOpenRecipes(options: {
   console.log(`Total Recipes: ${metadata.totalRecords.toLocaleString()}`);
   console.log(`Total Size: ${formatBytes(metadata.files.reduce((sum, f) => sum + f.size, 0))}`);
   console.log('\nFile Details:');
-  metadata.files.forEach(file => {
-    console.log(`  - ${file.source.padEnd(15)} ${file.recordCount.toLocaleString().padStart(8)} recipes  ${formatBytes(file.size)}`);
+  metadata.files.forEach((file) => {
+    console.log(
+      `  - ${file.source.padEnd(15)} ${file.recordCount.toLocaleString().padStart(8)} recipes  ${formatBytes(file.size)}`
+    );
   });
   console.log('='.repeat(80));
 
@@ -320,7 +325,7 @@ async function downloadOpenRecipes(options: {
     console.log('\n⚠ WARNING: Some files failed to download. Check logs above for details.');
     console.log('If files are missing from GitHub, you may need to:');
     console.log('1. Clone the repository: git clone https://github.com/openrecipes/openrecipes');
-    console.log('2. Copy JSON files manually to: ' + DATA_DIR);
+    console.log(`2. Copy JSON files manually to: ${DATA_DIR}`);
   }
 
   console.log('\nNext step: Run ingestion script');
@@ -345,7 +350,7 @@ if (require.main === module) {
       options.sample = true;
     } else if (arg.startsWith('--sources=')) {
       const sourcesStr = arg.replace('--sources=', '');
-      options.sources = sourcesStr.split(',').map(s => s.trim());
+      options.sources = sourcesStr.split(',').map((s) => s.trim());
     } else if (arg === '--help' || arg === '-h') {
       console.log('OpenRecipes Dataset Downloader\n');
       console.log('Usage:');
@@ -358,7 +363,7 @@ if (require.main === module) {
       console.log('  --sample             Download sample files only');
       console.log('  --help, -h           Show this help message');
       console.log('\nAvailable Sources:');
-      Object.keys(RECIPE_SOURCES).forEach(source => {
+      Object.keys(RECIPE_SOURCES).forEach((source) => {
         console.log(`  - ${source}`);
       });
       process.exit(0);
@@ -369,7 +374,7 @@ if (require.main === module) {
     .then(() => {
       process.exit(0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });

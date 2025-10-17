@@ -9,9 +9,9 @@
  * 3. Save kaggle.json to ~/.kaggle/
  */
 
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 export function checkKaggleSetup(): boolean {
   const kaggleDir = path.join(os.homedir(), '.kaggle');
@@ -30,7 +30,7 @@ export function checkKaggleSetup(): boolean {
 
   // Check file permissions (should be 600)
   const stats = fs.statSync(kaggleJson);
-  const mode = (stats.mode & parseInt('777', 8)).toString(8);
+  const mode = (stats.mode & 0o777).toString(8);
 
   if (mode !== '600') {
     console.log('\n⚠️  Kaggle API configured but permissions are incorrect');

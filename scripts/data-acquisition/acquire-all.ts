@@ -14,13 +14,13 @@
  *   npm run data:acquire-all -- themealdb # Specific source only
  */
 
-import { checkKaggleSetup } from './setup-kaggle';
-import { downloadFoodCom } from './download-food-com';
+import fs from 'node:fs';
+import path from 'node:path';
 import { crawlTheMealDB } from './crawl-themealdb';
-import { parseFoodComRecipes } from './parsers/food-com-parser';
+import { downloadFoodCom } from './download-food-com';
 import { ingestBatch } from './ingest-recipes';
-import path from 'path';
-import fs from 'fs';
+import { parseFoodComRecipes } from './parsers/food-com-parser';
+import { checkKaggleSetup } from './setup-kaggle';
 
 interface AcquisitionOptions {
   sources?: string[]; // Specific sources to acquire (themealdb, foodcom, epicurious)
@@ -34,7 +34,7 @@ interface AcquisitionOptions {
  * Acquires recipes from TheMealDB
  */
 async function acquireTheMealDB(options: AcquisitionOptions) {
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${'='.repeat(60)}`);
   console.log('  THEMEALDB ACQUISITION');
   console.log('='.repeat(60));
 
@@ -89,7 +89,7 @@ async function acquireTheMealDB(options: AcquisitionOptions) {
  * Acquires recipes from Food.com
  */
 async function acquireFoodCom(options: AcquisitionOptions) {
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${'='.repeat(60)}`);
   console.log('  FOOD.COM ACQUISITION');
   console.log('='.repeat(60));
 
@@ -120,10 +120,7 @@ async function acquireFoodCom(options: AcquisitionOptions) {
   if (!options.skipIngest) {
     console.log('\n[Step 2] Parsing CSV files...');
 
-    const csvPath = path.join(
-      process.cwd(),
-      'data/recipes/incoming/food-com/RAW_recipes.csv'
-    );
+    const csvPath = path.join(process.cwd(), 'data/recipes/incoming/food-com/RAW_recipes.csv');
 
     if (!fs.existsSync(csvPath)) {
       console.error(`✗ CSV file not found: ${csvPath}`);
@@ -159,7 +156,7 @@ async function acquireFoodCom(options: AcquisitionOptions) {
  * Main acquisition function
  */
 async function acquireAll(options: AcquisitionOptions = {}) {
-  console.log('\n' + '█'.repeat(60));
+  console.log(`\n${'█'.repeat(60)}`);
   console.log('  RECIPE DATA ACQUISITION PIPELINE');
   console.log('█'.repeat(60));
 
@@ -182,11 +179,11 @@ async function acquireAll(options: AcquisitionOptions = {}) {
     }
 
     // Add delay between sources
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   // Final summary
-  console.log('\n' + '█'.repeat(60));
+  console.log(`\n${'█'.repeat(60)}`);
   console.log('  ACQUISITION SUMMARY');
   console.log('█'.repeat(60));
 
@@ -212,18 +209,18 @@ if (require.main === module) {
     sources: args.length > 0 ? args : undefined,
     skipDownload: process.env.SKIP_DOWNLOAD === 'true',
     skipIngest: process.env.SKIP_INGEST === 'true',
-    batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE) : 10,
-    maxRecipes: process.env.MAX_RECIPES ? parseInt(process.env.MAX_RECIPES) : undefined,
+    batchSize: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 10,
+    maxRecipes: process.env.MAX_RECIPES ? parseInt(process.env.MAX_RECIPES, 10) : undefined,
   };
 
   console.log('[Options]', options);
 
   acquireAll(options)
-    .then(results => {
+    .then((results) => {
       const hasFailures = Object.values(results).some((r: any) => !r.success);
       process.exit(hasFailures ? 1 : 0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });

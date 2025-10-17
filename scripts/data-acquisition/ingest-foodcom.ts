@@ -27,14 +27,13 @@
  *   tsx scripts/data-acquisition/ingest-foodcom.ts 1000 5000 # 1000 per batch, max 5000 total
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { parse } from 'csv-parse/sync';
 import { sql } from 'drizzle-orm';
 import { db } from '../../src/lib/db';
-import { recipes, recipeEmbeddings } from '../../src/lib/db/schema';
+import { recipes } from '../../src/lib/db/schema';
 import { evaluateRecipeQuality } from '../lib/recipe-quality-evaluator-script';
-import { generateEmbedding } from '../../src/lib/ai/embeddings';
 
 // Constants
 const DATA_DIR = path.join(process.cwd(), 'data/recipes/incoming/food-com');
@@ -93,7 +92,7 @@ function parseJsonArray(value: string): string[] {
     const jsonString = value.replace(/'/g, '"');
     const parsed = JSON.parse(jsonString);
     return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-  } catch (error) {
+  } catch (_error) {
     // If parsing fails, return empty array (some fields might be malformed)
     return [];
   }
@@ -124,7 +123,7 @@ function parseNutrition(nutritionStr: string): Record<string, string> | null {
       saturated_fat: values[5]?.toString() || '0',
       carbohydrates: values[6]?.toString() || '0',
     };
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -149,7 +148,7 @@ function transformRecipe(row: FoodComCSVRow) {
   const tags = parseJsonArray(row.tags);
   const nutrition = parseNutrition(row.nutrition);
 
-  const totalMinutes = parseInt(row.minutes) || 0;
+  const totalMinutes = parseInt(row.minutes, 10) || 0;
   const { prepTime, cookTime } = splitPrepCookTime(totalMinutes);
 
   return {
@@ -236,8 +235,8 @@ async function ingestRecipe(
 
     // Step 2: Generate embedding for semantic search
     // TEMPORARILY DISABLED - Hugging Face API issues
-    let embeddingVector: number[] | null = null;
-    let embeddingText = '';
+    const _embeddingVector: number[] | null = null;
+    const _embeddingText = '';
 
     // Skip embedding generation for now
     console.log(`${progress}   Embedding: Skipped (temporarily disabled)`);
@@ -298,7 +297,6 @@ async function ingestRecipe(
 
     console.log(`${progress} ✓ Stored "${recipe.name}"`);
     return { success: true, recipeId: insertedRecipe.id };
-
   } catch (error: any) {
     console.error(`${progress} ✗ Failed to store "${recipe.name}": ${error.message}`);
     return { success: false, error: error.message };
@@ -351,7 +349,7 @@ async function ingestFoodComRecipes(
     startTime: new Date(),
   };
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  FOOD.COM RECIPE INGESTION PIPELINE');
   console.log('='.repeat(80));
   console.log(`Started: ${stats.startTime.toISOString()}`);
@@ -398,14 +396,18 @@ async function ingestFoodComRecipes(
 
       // Rate limiting delay (except for last recipe)
       if (i < rows.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+        await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
       }
 
       // Progress update every batch
       if ((i + 1) % batchSize === 0 || i === rows.length - 1) {
-        console.log('\n' + '-'.repeat(80));
-        console.log(`BATCH ${batchNum} COMPLETE - Progress: ${i + 1}/${rows.length} recipes processed`);
-        console.log(`Success: ${stats.success} | Skipped: ${stats.skipped} | Failed: ${stats.failed}`);
+        console.log(`\n${'-'.repeat(80)}`);
+        console.log(
+          `BATCH ${batchNum} COMPLETE - Progress: ${i + 1}/${rows.length} recipes processed`
+        );
+        console.log(
+          `Success: ${stats.success} | Skipped: ${stats.skipped} | Failed: ${stats.failed}`
+        );
         console.log('-'.repeat(80));
       }
     }
@@ -417,7 +419,6 @@ async function ingestFoodComRecipes(
 
     // Print final summary
     printSummary(stats);
-
   } catch (error: any) {
     console.error('\n[Food.com] Fatal error:', error.message);
     console.error(error.stack);
@@ -442,9 +443,7 @@ async function saveIngestionLog(stats: IngestionStats): Promise<void> {
 
     const logData = {
       ...stats,
-      duration: stats.endTime
-        ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000
-        : null,
+      duration: stats.endTime ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000 : null,
     };
 
     fs.writeFileSync(logFile, JSON.stringify(logData, null, 2));
@@ -458,11 +457,9 @@ async function saveIngestionLog(stats: IngestionStats): Promise<void> {
  * Prints final summary
  */
 function printSummary(stats: IngestionStats): void {
-  const duration = stats.endTime
-    ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000
-    : 0;
+  const duration = stats.endTime ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000 : 0;
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  INGESTION COMPLETE');
   console.log('='.repeat(80));
   console.log(`Total Recipes: ${stats.total}`);
@@ -474,7 +471,7 @@ function printSummary(stats: IngestionStats): void {
 
   if (stats.errors.length > 0) {
     console.log(`\nErrors (showing first 20):`);
-    stats.errors.slice(0, 20).forEach(err => {
+    stats.errors.slice(0, 20).forEach((err) => {
       console.log(`  - ${err.recipe}: ${err.error}`);
     });
 
@@ -490,8 +487,8 @@ function printSummary(stats: IngestionStats): void {
 if (require.main === module) {
   const args = process.argv.slice(2);
 
-  const batchSize = args[0] ? parseInt(args[0]) : DEFAULT_BATCH_SIZE;
-  const maxRecipes = args[1] ? parseInt(args[1]) : undefined;
+  const batchSize = args[0] ? parseInt(args[0], 10) : DEFAULT_BATCH_SIZE;
+  const maxRecipes = args[1] ? parseInt(args[1], 10) : undefined;
 
   console.log('\n[Food.com] Starting ingestion...');
   if (args.length === 0) {
@@ -500,10 +497,10 @@ if (require.main === module) {
   }
 
   ingestFoodComRecipes(batchSize, maxRecipes)
-    .then(stats => {
+    .then((stats) => {
       process.exit(stats.failed > 0 ? 1 : 0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });

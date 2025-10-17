@@ -12,8 +12,8 @@
  * - Full recipe details available
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const BASE_URL = 'https://www.themealdb.com/api/json/v1/1/';
 const OUTPUT_DIR = path.join(process.cwd(), 'data/recipes/incoming/themealdb');
@@ -58,7 +58,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<any> {
       }
 
       // Exponential backoff
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
     }
   }
 }
@@ -73,7 +73,7 @@ function parseIngredients(meal: MealDBMeal): string[] {
     const ingredient = meal[`strIngredient${i}`];
     const measure = meal[`strMeasure${i}`];
 
-    if (ingredient && ingredient.trim()) {
+    if (ingredient?.trim()) {
       ingredients.push(`${measure || ''} ${ingredient}`.trim());
     }
   }
@@ -90,8 +90,8 @@ function parseInstructions(instructions: string): string[] {
   // Split by newlines
   return instructions
     .split(/\r\n|\n/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 }
 
 async function crawlTheMealDB(options: { limit?: number; letters?: string } = {}) {
@@ -104,7 +104,7 @@ async function crawlTheMealDB(options: { limit?: number; letters?: string } = {}
   const letters = options.letters || 'abcdefghijklmnopqrstuvwxyz';
   const limit = options.limit;
 
-  for (let letter of letters) {
+  for (const letter of letters) {
     if (limit && recipes.length >= limit) break;
 
     console.log(`\n[TheMealDB] === Fetching meals starting with '${letter.toUpperCase()}' ===`);
@@ -142,7 +142,8 @@ async function crawlTheMealDB(options: { limit?: number; letters?: string } = {}
           const recipe = {
             id: fullMeal.idMeal,
             name: fullMeal.strMeal,
-            description: `${fullMeal.strCategory || ''} dish from ${fullMeal.strArea || 'unknown'} cuisine`.trim(),
+            description:
+              `${fullMeal.strCategory || ''} dish from ${fullMeal.strArea || 'unknown'} cuisine`.trim(),
             ingredients,
             instructions,
             category: fullMeal.strCategory || '',
@@ -155,9 +156,11 @@ async function crawlTheMealDB(options: { limit?: number; letters?: string } = {}
           };
 
           recipes.push(recipe);
-          console.log(`[TheMealDB]   ✓ ${fullMeal.strMeal} (${ingredients.length} ingredients, ${instructions.length} steps)`);
+          console.log(
+            `[TheMealDB]   ✓ ${fullMeal.strMeal} (${ingredients.length} ingredients, ${instructions.length} steps)`
+          );
 
-          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_MS));
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_MS));
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[TheMealDB]   ✗ Error fetching meal ${meal.idMeal}:`, errorMessage);
@@ -165,7 +168,7 @@ async function crawlTheMealDB(options: { limit?: number; letters?: string } = {}
       }
 
       // Wait between letters
-      await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_MS * 2));
+      await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_MS * 2));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[TheMealDB] Error fetching letter '${letter}':`, errorMessage);
@@ -176,7 +179,7 @@ async function crawlTheMealDB(options: { limit?: number; letters?: string } = {}
   const outputPath = path.join(OUTPUT_DIR, `recipes-${Date.now()}.json`);
   fs.writeFileSync(outputPath, JSON.stringify(recipes, null, 2));
 
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${'='.repeat(60)}`);
   console.log(`[TheMealDB] ✓ Crawl complete!`);
   console.log(`[TheMealDB] Saved ${recipes.length} recipes to:`);
   console.log(`[TheMealDB] ${outputPath}`);
@@ -188,15 +191,15 @@ async function crawlTheMealDB(options: { limit?: number; letters?: string } = {}
 // CLI usage
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const limit = args[0] ? parseInt(args[0]) : undefined;
+  const limit = args[0] ? parseInt(args[0], 10) : undefined;
   const letters = args[1] || undefined;
 
   crawlTheMealDB({ limit, letters })
-    .then(result => {
+    .then((result) => {
       console.log('\n✓ Success:', result);
       process.exit(0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('\n✗ Failed:', error);
       process.exit(1);
     });

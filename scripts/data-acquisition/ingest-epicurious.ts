@@ -31,13 +31,12 @@
  *   tsx scripts/data-acquisition/ingest-epicurious.ts --limit 1000 # First 1000 recipes only
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { sql } from 'drizzle-orm';
 import { db } from '../../src/lib/db';
-import { recipes, recipeEmbeddings } from '../../src/lib/db/schema';
+import { recipeEmbeddings, recipes } from '../../src/lib/db/schema';
 import { evaluateRecipeQuality } from '../lib/recipe-quality-evaluator-script';
-import { generateEmbedding } from '../../src/lib/ai/embeddings';
 
 // Constants
 const DATA_DIR = path.join(process.cwd(), 'data/recipes/incoming/epicurious');
@@ -92,17 +91,15 @@ function parseIngredients(ingredients: string | string[] | undefined): string[] 
 
   // If already an array, clean and return
   if (Array.isArray(ingredients)) {
-    return ingredients
-      .map(ing => ing.trim())
-      .filter(ing => ing.length > 0);
+    return ingredients.map((ing) => ing.trim()).filter((ing) => ing.length > 0);
   }
 
   // If string, split by newlines
   if (typeof ingredients === 'string') {
     return ingredients
       .split(/\r?\n/)
-      .map(ing => ing.trim())
-      .filter(ing => ing.length > 0);
+      .map((ing) => ing.trim())
+      .filter((ing) => ing.length > 0);
   }
 
   return [];
@@ -119,9 +116,7 @@ function parseDirections(directions: string | string[] | undefined): string[] {
 
   // If already an array, clean and return
   if (Array.isArray(directions)) {
-    return directions
-      .map(dir => dir.trim())
-      .filter(dir => dir.length > 0);
+    return directions.map((dir) => dir.trim()).filter((dir) => dir.length > 0);
   }
 
   // If string, split by newlines or numbered steps
@@ -129,15 +124,15 @@ function parseDirections(directions: string | string[] | undefined): string[] {
     // Try splitting by newlines first
     let steps = directions
       .split(/\r?\n/)
-      .map(dir => dir.trim())
-      .filter(dir => dir.length > 0);
+      .map((dir) => dir.trim())
+      .filter((dir) => dir.length > 0);
 
     // If we got only 1 step, try splitting by numbered patterns (1., 2., etc.)
     if (steps.length === 1) {
       steps = directions
         .split(/\d+\.\s+/)
-        .map(dir => dir.trim())
-        .filter(dir => dir.length > 0);
+        .map((dir) => dir.trim())
+        .filter((dir) => dir.length > 0);
     }
 
     return steps;
@@ -203,11 +198,19 @@ function estimateDifficulty(
   const stepCount = instructions.length;
 
   // Check for difficulty indicators in categories
-  const categoriesLower = categories.map(c => c.toLowerCase());
-  if (categoriesLower.some(c => c.includes('quick') || c.includes('easy') || c.includes('weeknight'))) {
+  const categoriesLower = categories.map((c) => c.toLowerCase());
+  if (
+    categoriesLower.some(
+      (c) => c.includes('quick') || c.includes('easy') || c.includes('weeknight')
+    )
+  ) {
     return 'easy';
   }
-  if (categoriesLower.some(c => c.includes('advanced') || c.includes('complex') || c.includes('chef'))) {
+  if (
+    categoriesLower.some(
+      (c) => c.includes('advanced') || c.includes('complex') || c.includes('chef')
+    )
+  ) {
     return 'hard';
   }
 
@@ -229,9 +232,11 @@ function validateAndParseDate(dateString: string | undefined | null): Date | nul
   if (!dateString) return null;
 
   // Reject known invalid values
-  if (dateString.toLowerCase() === 'approximate' ||
-      dateString.toLowerCase() === 'unknown' ||
-      dateString.toLowerCase() === 'n/a') {
+  if (
+    dateString.toLowerCase() === 'approximate' ||
+    dateString.toLowerCase() === 'unknown' ||
+    dateString.toLowerCase() === 'n/a'
+  ) {
     console.warn(`[Parser] Invalid date string: "${dateString}" - using null`);
     return null;
   }
@@ -240,7 +245,7 @@ function validateAndParseDate(dateString: string | undefined | null): Date | nul
     const date = new Date(dateString);
 
     // Check if date is valid
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       console.warn(`[Parser] Invalid date string: "${dateString}" - parsed to Invalid Date`);
       return null;
     }
@@ -275,7 +280,7 @@ function parseNutritionValue(value: number | string | undefined): string | null 
     // Remove units and parse
     const cleaned = value.replace(/[^\d.]/g, '');
     const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? null : parsed.toString();
+    return Number.isNaN(parsed) ? null : parsed.toString();
   }
 
   return null;
@@ -398,8 +403,8 @@ async function ingestRecipe(
 
     // Step 2: Generate embedding for semantic search
     // TEMPORARILY DISABLED - Hugging Face API issues
-    let embeddingVector: number[] | null = null;
-    let embeddingText = '';
+    const embeddingVector: number[] | null = null;
+    const embeddingText = '';
 
     // Skip embedding generation for now
     console.log(`${progress}   Embedding: Skipped (temporarily disabled)`);
@@ -475,7 +480,6 @@ async function ingestRecipe(
 
     console.log(`${progress} ✓ Stored "${recipe.name}"`);
     return { success: true, recipeId: insertedRecipe.id };
-
   } catch (error: any) {
     console.error(`${progress} ✗ Failed to store "${recipe.name}": ${error.message}`);
     return { success: false, error: error.message };
@@ -540,7 +544,7 @@ async function ingestEpicuriousRecipes(
     startTime: new Date(),
   };
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  EPICURIOUS RECIPE INGESTION PIPELINE');
   console.log('='.repeat(80));
   console.log(`Started: ${stats.startTime.toISOString()}`);
@@ -594,14 +598,18 @@ async function ingestEpicuriousRecipes(
 
       // Rate limiting delay (except for last recipe)
       if (i < epiRecipes.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
+        await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
       }
 
       // Progress update every batch
       if ((i + 1) % batchSize === 0 || i === epiRecipes.length - 1) {
-        console.log('\n' + '-'.repeat(80));
-        console.log(`BATCH ${batchNum} COMPLETE - Progress: ${i + 1}/${epiRecipes.length} recipes processed`);
-        console.log(`Success: ${stats.success} | Skipped: ${stats.skipped} | Failed: ${stats.failed}`);
+        console.log(`\n${'-'.repeat(80)}`);
+        console.log(
+          `BATCH ${batchNum} COMPLETE - Progress: ${i + 1}/${epiRecipes.length} recipes processed`
+        );
+        console.log(
+          `Success: ${stats.success} | Skipped: ${stats.skipped} | Failed: ${stats.failed}`
+        );
         console.log('-'.repeat(80));
       }
     }
@@ -613,7 +621,6 @@ async function ingestEpicuriousRecipes(
 
     // Print final summary
     printSummary(stats);
-
   } catch (error: any) {
     console.error('\n[Epicurious] Fatal error:', error.message);
     console.error(error.stack);
@@ -638,9 +645,7 @@ async function saveIngestionLog(stats: IngestionStats): Promise<void> {
 
     const logData = {
       ...stats,
-      duration: stats.endTime
-        ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000
-        : null,
+      duration: stats.endTime ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000 : null,
     };
 
     fs.writeFileSync(logFile, JSON.stringify(logData, null, 2));
@@ -654,11 +659,9 @@ async function saveIngestionLog(stats: IngestionStats): Promise<void> {
  * Prints final summary
  */
 function printSummary(stats: IngestionStats): void {
-  const duration = stats.endTime
-    ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000
-    : 0;
+  const duration = stats.endTime ? (stats.endTime.getTime() - stats.startTime.getTime()) / 1000 : 0;
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('  INGESTION COMPLETE');
   console.log('='.repeat(80));
   console.log(`Total Recipes: ${stats.total}`);
@@ -670,7 +673,7 @@ function printSummary(stats: IngestionStats): void {
 
   if (stats.errors.length > 0) {
     console.log(`\nErrors (showing first 20):`);
-    stats.errors.slice(0, 20).forEach(err => {
+    stats.errors.slice(0, 20).forEach((err) => {
       console.log(`  - ${err.recipe}: ${err.error}`);
     });
 
@@ -690,13 +693,13 @@ if (require.main === module) {
   const limitIndex = args.indexOf('--limit');
   let maxRecipes: number | undefined;
   if (limitIndex !== -1 && args[limitIndex + 1]) {
-    maxRecipes = parseInt(args[limitIndex + 1]);
+    maxRecipes = parseInt(args[limitIndex + 1], 10);
     args.splice(limitIndex, 2); // Remove --limit and value from args
   }
 
-  const batchSize = args[0] ? parseInt(args[0]) : DEFAULT_BATCH_SIZE;
+  const batchSize = args[0] ? parseInt(args[0], 10) : DEFAULT_BATCH_SIZE;
   if (!maxRecipes && args[1]) {
-    maxRecipes = parseInt(args[1]);
+    maxRecipes = parseInt(args[1], 10);
   }
 
   console.log('\n[Epicurious] Starting ingestion...');
@@ -707,10 +710,10 @@ if (require.main === module) {
   }
 
   ingestEpicuriousRecipes(batchSize, maxRecipes)
-    .then(stats => {
+    .then((stats) => {
       process.exit(stats.failed > 0 ? 1 : 0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });

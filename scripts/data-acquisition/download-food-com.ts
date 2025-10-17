@@ -8,14 +8,18 @@
  * - Kaggle CLI installed (pip install kaggle)
  */
 
-import { execSync } from 'child_process';
-import path from 'path';
-import fs from 'fs';
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const DATASET = 'shuyangli94/food-com-recipes-and-user-interactions';
 const OUTPUT_DIR = path.join(process.cwd(), 'data/recipes/incoming/food-com');
 
-export async function downloadFoodCom(): Promise<{ success: boolean; files?: string[]; error?: any }> {
+export async function downloadFoodCom(): Promise<{
+  success: boolean;
+  files?: string[];
+  error?: any;
+}> {
   console.log('[Food.com] Starting download...');
 
   // Ensure directory exists
@@ -25,7 +29,7 @@ export async function downloadFoodCom(): Promise<{ success: boolean; files?: str
     // Check if kaggle CLI is available
     try {
       execSync('which kaggle', { stdio: 'pipe' });
-    } catch (error) {
+    } catch (_error) {
       console.error('[Food.com] Kaggle CLI not found');
       console.error('Install with: pip install kaggle');
       return { success: false, error: 'Kaggle CLI not installed' };
@@ -55,10 +59,10 @@ export async function downloadFoodCom(): Promise<{ success: boolean; files?: str
 
 if (require.main === module) {
   downloadFoodCom()
-    .then(result => {
+    .then((result) => {
       process.exit(result.success ? 0 : 1);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });

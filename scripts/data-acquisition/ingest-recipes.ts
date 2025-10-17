@@ -14,13 +14,12 @@
  * - Progress reporting
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
 import { sql } from 'drizzle-orm';
-import { db } from '../../src/lib/db';
-import { recipes, recipeEmbeddings } from '../../src/lib/db/schema';
-import { evaluateRecipeQuality } from '../../src/lib/ai/recipe-quality-evaluator';
 import { generateEmbedding } from '../../src/lib/ai/embeddings';
+import { evaluateRecipeQuality } from '../../src/lib/ai/recipe-quality-evaluator';
+import { db } from '../../src/lib/db';
+import { recipeEmbeddings, recipes } from '../../src/lib/db/schema';
 import type { StandardRecipe } from './parsers/food-com-parser';
 
 // System user ID for imported recipes
@@ -46,7 +45,7 @@ function parseMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
 
   const match = timeStr.match(/(\d+)/);
-  return match ? parseInt(match[1]) : null;
+  return match ? parseInt(match[1], 10) : null;
 }
 
 /**
@@ -131,7 +130,7 @@ async function ingestRecipe(recipe: StandardRecipe): Promise<IngestionResult> {
         instructions: JSON.stringify(recipe.instructions || []),
         prepTime: parseMinutes(recipe.prepTime),
         cookTime: parseMinutes(recipe.cookTime),
-        servings: recipe.servings ? parseInt(recipe.servings) : null,
+        servings: recipe.servings ? parseInt(recipe.servings, 10) : null,
         difficulty: null, // Not provided by data sources
         cuisine: recipe.cuisine || null,
         tags: recipe.tags && recipe.tags.length > 0 ? JSON.stringify(recipe.tags) : null,
@@ -169,7 +168,6 @@ async function ingestRecipe(recipe: StandardRecipe): Promise<IngestionResult> {
 
     console.log(`[Ingest] ✓ Stored "${recipe.name}"`);
     return { success: true, recipeId: insertedRecipe.id };
-
   } catch (error: any) {
     console.error(`[Ingest] ✗ Failed to store "${recipe.name}":`, error.message);
     return { success: false, error: error.message };
@@ -218,12 +216,12 @@ export async function ingestBatch(
 
     // Rate limiting delay
     if (i < recipes.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
     // Progress update every batch
     if ((i + 1) % batchSize === 0 || i === recipes.length - 1) {
-      console.log('\n' + '-'.repeat(60));
+      console.log(`\n${'-'.repeat(60)}`);
       console.log(`Progress: ${i + 1}/${recipes.length} recipes processed`);
       console.log(`Success: ${stats.success} | Failed: ${stats.failed}`);
       console.log('-'.repeat(60));
@@ -231,7 +229,7 @@ export async function ingestBatch(
   }
 
   // Final summary
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${'='.repeat(60)}`);
   console.log('  INGESTION COMPLETE');
   console.log('='.repeat(60));
   console.log(`Total Recipes: ${recipes.length}`);
@@ -240,7 +238,7 @@ export async function ingestBatch(
 
   if (stats.errors.length > 0) {
     console.log(`\nErrors (showing first 10):`);
-    stats.errors.slice(0, 10).forEach(err => {
+    stats.errors.slice(0, 10).forEach((err) => {
       console.log(`  - ${err.recipe}: ${err.error}`);
     });
   }
@@ -282,13 +280,13 @@ if (require.main === module) {
   }
 
   const filePath = args[0];
-  const batchSize = args[1] ? parseInt(args[1]) : 10;
+  const batchSize = args[1] ? parseInt(args[1], 10) : 10;
 
   ingestFromFile(filePath, batchSize)
-    .then(stats => {
+    .then((stats) => {
       process.exit(stats.failed > 0 ? 1 : 0);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Fatal error:', error);
       process.exit(1);
     });

@@ -4,7 +4,7 @@
  * Parses Food.com CSV datasets into standardized recipe format
  */
 
-import fs from 'fs';
+import fs from 'node:fs';
 import { parse } from 'csv-parse/sync';
 
 interface FoodComRecipe {
@@ -65,14 +65,17 @@ function parseListString(value: string): string[] {
       const cleaned = value.replace(/^c\(|\)$/g, '');
       return cleaned
         .split(',')
-        .map(item => item.trim().replace(/^["']|["']$/g, ''))
+        .map((item) => item.trim().replace(/^["']|["']$/g, ''))
         .filter(Boolean);
     }
 
     // Handle bracketed format: ["item1", "item2"]
     const cleaned = value.replace(/^\[|\]$/g, '').replace(/["']/g, '');
-    return cleaned.split(',').map(item => item.trim()).filter(Boolean);
-  } catch (error) {
+    return cleaned
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch (_error) {
     console.warn('Failed to parse list string:', value.substring(0, 100));
     return [];
   }
@@ -97,7 +100,7 @@ export function parseFoodComRecipes(csvPath: string): StandardRecipe[] {
 
   console.log(`[Food.com Parser] Found ${records.length} recipes`);
 
-  return records.map(recipe => {
+  return records.map((recipe) => {
     // Parse ingredients
     const ingredients = parseListString(recipe.RecipeIngredientParts);
 
@@ -109,7 +112,7 @@ export function parseFoodComRecipes(csvPath: string): StandardRecipe[] {
     if (recipe.Images) {
       try {
         images = JSON.parse(recipe.Images);
-      } catch (error) {
+      } catch (_error) {
         images = parseListString(recipe.Images);
       }
     }
@@ -137,7 +140,7 @@ export function parseFoodComRecipes(csvPath: string): StandardRecipe[] {
         carbohydrates: recipe.CarbohydrateContent || '',
       },
       rating: parseFloat(recipe.AggregatedRating) || undefined,
-      reviewCount: parseInt(recipe.ReviewCount) || undefined,
+      reviewCount: parseInt(recipe.ReviewCount, 10) || undefined,
       images: images.filter(Boolean),
       source: 'Food.com',
       sourceUrl: `https://www.food.com/recipe/${recipe.RecipeId}`,

@@ -14,8 +14,8 @@
  * to populate slugs for all existing recipes.
  */
 
-import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
 
 async function runMigration() {
   console.log('Starting migration: Add slug column to recipes table...\n');
