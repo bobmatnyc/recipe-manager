@@ -313,7 +313,7 @@ function transformRecipe(epiRecipe: EpicuriousRecipe) {
 
   return {
     name: epiRecipe.title,
-    description: epiRecipe.desc || null,
+    description: epiRecipe.desc || epiRecipe.title || '', // Fallback to title or empty string
     ingredients,
     instructions,
     cuisine,
@@ -436,26 +436,29 @@ async function ingestRecipe(
     const [insertedRecipe] = await db
       .insert(recipes)
       .values({
-        userId: SYSTEM_USER_ID,
+        user_id: SYSTEM_USER_ID,
         name: recipe.name,
         description: recipe.description,
         ingredients: JSON.stringify(recipe.ingredients),
         instructions: JSON.stringify(recipe.instructions),
-        prepTime: null, // Not provided in Epicurious dataset
-        cookTime: null, // Not provided in Epicurious dataset
+        prep_time: null, // Not provided in Epicurious dataset
+        cook_time: null, // Not provided in Epicurious dataset
         servings: null, // Not provided in Epicurious dataset
         difficulty: recipe.difficulty,
         cuisine: recipe.cuisine,
         tags: recipe.tags && recipe.tags.length > 0 ? JSON.stringify(recipe.tags) : null,
         images: recipe.imageUrl ? JSON.stringify([recipe.imageUrl]) : null,
-        isAiGenerated: false,
-        isPublic: true, // Epicurious recipes are public
-        isSystemRecipe: true,
-        nutritionInfo: recipe.nutrition ? JSON.stringify(recipe.nutrition) : null,
+        is_ai_generated: false,
+        is_public: true, // Epicurious recipes are public
+        is_system_recipe: true,
+        nutrition_info: recipe.nutrition ? JSON.stringify(recipe.nutrition) : null,
         source: recipe.source,
-        systemRating: qualityRating.toFixed(1),
-        systemRatingReason: qualityReason,
-        discoveryDate: recipe.publishedDate || new Date(),
+        system_rating: qualityRating.toFixed(1),
+        system_rating_reason: qualityReason,
+        discovery_date: recipe.publishedDate || new Date(),
+        like_count: 0, // Initialize engagement counters
+        fork_count: 0,
+        collection_count: 0,
       })
       .returning();
 
@@ -482,6 +485,12 @@ async function ingestRecipe(
     return { success: true, recipeId: insertedRecipe.id };
   } catch (error: any) {
     console.error(`${progress} ✗ Failed to store "${recipe.name}": ${error.message}`);
+    if (error.stack) {
+      console.error(`${progress}   Stack trace:`, error.stack.split('\n').slice(0, 3).join('\n'));
+    }
+    if (error.detail) {
+      console.error(`${progress}   Database detail:`, error.detail);
+    }
     return { success: false, error: error.message };
   }
 }
