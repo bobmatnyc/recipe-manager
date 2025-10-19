@@ -7,7 +7,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-export type ImportSource = 'themealdb' | 'open-recipe-db';
+export type ImportSource = 'themealdb' | 'open-recipe-db' | 'usda';
 
 export interface ImportError {
   id: string;
