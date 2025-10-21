@@ -1,0 +1,33 @@
+# Example Recipe Batch File
+# One recipe name per line
+# Lines starting with # are ignored
+
+# Vegetables
+Roasted Root Vegetables
+Grilled Asparagus with Lemon
+Sautéed Brussels Sprouts
+
+# Pasta & Grains
+Pasta Carbonara
+Risotto with Mushrooms
+Quinoa Salad
+
+# Proteins
+Herb-Crusted Salmon
+Roasted Chicken Thighs
+Grilled Steak
+
+# Soups & Stews
+Tomato Basil Soup
+Butternut Squash Soup
+Chicken Noodle Soup
+
+# Desserts
+Chocolate Chip Cookies
+Apple Pie
+Tiramisu
+
+# Salads
+Caesar Salad
+Greek Salad
+Caprese Salad
