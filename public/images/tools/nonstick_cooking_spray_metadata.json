@@ -1,0 +1,13 @@
+{
+  "ingredient_name": "Nonstick Cooking Spray",
+  "timestamp": "20251023_093708",
+  "model": "stabilityai/stable-diffusion-xl-base-1.0",
+  "images": [
+    "nonstick_cooking_spray.png"
+  ],
+  "config": {
+    "steps": 25,
+    "guidance": 7.5,
+    "resolution": "1024x1024"
+  }
+}

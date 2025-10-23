@@ -1,0 +1,13 @@
+{
+  "ingredient_name": "Muffin Liners",
+  "timestamp": "20251023_093540",
+  "model": "stabilityai/stable-diffusion-xl-base-1.0",
+  "images": [
+    "muffin_liners.png"
+  ],
+  "config": {
+    "steps": 25,
+    "guidance": 7.5,
+    "resolution": "1024x1024"
+  }
+}
